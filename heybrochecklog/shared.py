@@ -7,8 +7,23 @@ import os
 import cchardet
 import chardet
 
+# Type hinting
+from typing import Union, List, Dict, Any, TypedDict, cast, Optional
+from pathlib import Path
 
-def get_log_contents(log_file):
+
+class CChardetResultDict(TypedDict):
+    encoding: str
+    confidence: float
+
+
+class ChardetResultDict(TypedDict):
+    encoding: str
+    confidence: float
+    language: Optional[str]
+
+
+def get_log_contents(log_file: Path) -> List[str]:
     """Open a log file and return its contents."""
     encoding = get_log_encoding(log_file)
     with log_file.open(encoding=encoding) as log:
@@ -17,9 +32,11 @@ def get_log_contents(log_file):
     return contents
 
 
-def detect_chardet(log_data):
-    cchardet_detection = cchardet.detect(log_data)
-    chardet_detection = chardet.detect(log_data)
+def detect_chardet(log_data: bytes) -> Union[CChardetResultDict, ChardetResultDict]:
+    cchardet_detection = cast(
+        CChardetResultDict, cchardet.detect(log_data)
+    )  # cast to force correct type hinting
+    chardet_detection = cast(ChardetResultDict, chardet.detect(log_data))
 
     """In cases chardet spews out Windows-1252 as encoding, switch over to cchardet."""
     if chardet_detection['encoding'] == "Windows-1252":
@@ -32,7 +49,7 @@ def detect_chardet(log_data):
     return cchardet_detection
 
 
-def get_log_encoding(log_file):
+def get_log_encoding(log_file: Path) -> str:
     """Get the encoding of the log file with the chardet library."""
     raw = log_file.read_bytes()
     if raw.startswith(codecs.BOM_UTF8):
@@ -42,17 +59,17 @@ def get_log_encoding(log_file):
         return result['encoding'] if (result['confidence'] or 0) > 0.7 else 'utf-8-sig'
 
 
-def format_pattern(pattern, append=None):
+def format_pattern(pattern: List[str], append: Optional[str] = None) -> str:
     if append:
         pattern = [p + append for p in pattern]
     return '|'.join(pattern)
 
 
-def format_pattern_for_setting_evaluation(pattern):
+def format_pattern_for_setting_evaluation(pattern: List[str]) -> str:
     return '(?:{})'.format('|'.join(pattern))
 
 
-def open_json(*paths):
+def open_json(*paths: str) -> Dict[str, Any]:
     """Open the language JSON patterns file and return it."""
     basepath = get_path()
     with open(os.path.join(basepath, 'resources', *paths)) as jsonfile:
@@ -61,6 +78,6 @@ def open_json(*paths):
     return language_data
 
 
-def get_path():
+def get_path() -> str:
     """Get the filepath for the heybrochecklog package directory."""
     return os.path.abspath(os.path.dirname(__file__))

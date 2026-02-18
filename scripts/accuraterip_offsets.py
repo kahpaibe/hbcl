@@ -11,8 +11,12 @@ import sys
 
 import requests
 
+# Type hinting
+from typing import Optional
+from sqlite3 import _Parameters
 
-def main():
+
+def main() -> None:
     """Call the rest of the functions--create db, scrape the text and send text to
     regex function.
     """
@@ -21,14 +25,14 @@ def main():
     process_scrape(text_)
 
 
-def scrape():
+def scrape() -> str:
     """Scrapes the AR page."""
     url = 'http://www.accuraterip.com/driveoffsets.htm'
     response = requests.get(url)
     return response.text
 
 
-def process_scrape(text_):
+def process_scrape(text_: str) -> None:
     """Process the scrape and send offset values to add to database function."""
     regex = re.compile(r'<tr>\s+<td bgcolor="#(?:FCFCFC|F4F4F4)">'
                        r'<font face="Arial" size="2">(.*)</font></td>\s+'
@@ -39,13 +43,13 @@ def process_scrape(text_):
             add_to_db(match.group(1), match.group(2))
 
 
-def add_to_db(name, offset):
+def add_to_db(name: str, offset: str) -> None:
     """Adds an offset to the database."""
     query('INSERT INTO Drives (Name, Offset) VALUES (?, ?)', (name, offset))
     print('Added drive: {} (Offset: {}).'.format(name, offset))
 
 
-def create_db():
+def create_db() -> None:
     """Create the database."""
     query("""
         CREATE TABLE Drives (
@@ -56,7 +60,7 @@ def create_db():
     """)
 
 
-def query(string, args=None):
+def query(string: str, args: Optional[_Parameters] = None):
     """Send a query to the DB."""
     path = os.path.join(sys.path[0], 'drives.db')
     conn = sqlite3.connect(path)

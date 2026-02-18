@@ -19,8 +19,10 @@ import chardet
 import constants
 import generators
 
+# Type hinting
+from typing import List, Tuple, Generator
 
-def main():
+def main() -> None:
     """The main function for the module; handles calling the other functions."""
     language_info = []
     filenames = sys.argv[1:]
@@ -37,9 +39,9 @@ def main():
     dump_json(language_info)
 
 
-def read_files(paths):
+def read_files(paths: List[str]) -> List[List[str]]:
     """Reads the file and returns a list of the file's contents."""
-    file_contents = list()
+    file_contents = []
     for path in paths:
         file_ = Path(path)
         if not file_.is_file():
@@ -63,7 +65,7 @@ def read_files(paths):
     return file_contents
 
 
-def regex_the_line(file_contents):
+def regex_the_line(file_contents: List[str]) -> Generator[Tuple[int, str]]:
     """Extracts the line number and text from the language file,
     and returns a (#, line) tuple."""
     for line in file_contents:

@@ -13,13 +13,26 @@ from heybrochecklog.markup.matches import (
 from heybrochecklog.score.modules import parsers
 from heybrochecklog.shared import format_pattern as fmt_ptn
 
+# Type hinting
+from heybrochecklog.logfile import LogFile
+from heybrochecklog.score.logchecker import (
+    TranslationJsonContentPatterns,
+    TranslationJsonContentPatternsTracksettings,
+)
+from typing import List, Dict, Union, Tuple
+from re import Pattern
+
 VERSIONS = {
     'EAC': r'Exact Audio Copy (V.*) from (.*)',
     'XLD': r'X Lossless Decoder version ([0-9abc]+) \(([0-9\.]+)\)',
 }
 
 
-def markup(log, patterns, translation):
+def markup(
+    log: LogFile,
+    patterns: TranslationJsonContentPatterns,
+    translation: Dict[str, List[str]],
+) -> None:
     """Mark up log files with highlighting for proper/improper settings."""
     log.full_contents = [html.escape(line) for line in log.full_contents]
 
@@ -30,7 +43,7 @@ def markup(log, patterns, translation):
     footer(log, translation)
 
 
-def header(log, translation):
+def header(log: LogFile, translation: Dict[str, List[str]]) -> None:
     """Mark up the header of the log."""
     # If first line is a version line, style it.
     start_index = 0
@@ -70,7 +83,7 @@ def header(log, translation):
                 break
 
 
-def drive(log, line):
+def drive(log: LogFile, line: str) -> str:
     """Mark up the drive line according to offset."""
     if log.has_deduction('Virtual drive'):
         return style_setting(line, 'bad')
@@ -81,15 +94,16 @@ def drive(log, line):
     return style_setting(line, 'good')
 
 
-def cd_type(log, line):
+def cd_type(log: LogFile, line: str) -> str:
     """Style CD type line."""
     if log.cdr:
         return style_setting(line, 'badish')
     return style_setting(line, 'good')
 
 
-def settings(log, patterns):
+def settings(log: LogFile, patterns: TranslationJsonContentPatterns) -> None:
     """Mark up the settings block."""
+    assert log.index_settings is not None
     for i, line in enumerate(log.full_contents[log.index_settings : log.index_toc]):
         i += log.index_settings
         if (
@@ -115,9 +129,10 @@ def settings(log, patterns):
                 log.full_contents[i] = style_setting(line, 'log4')
 
 
-def toc(log):
+def toc(log: LogFile) -> None:
     """Mark up TOC block."""
     # Mark up beginning of block
+    assert log.index_toc is not None
     init_line = log.full_contents[log.index_toc]
     log.full_contents[log.index_toc] = substitute(init_line, '(.*)', 'log4 log5')
 
@@ -151,7 +166,11 @@ def toc(log):
                         )
 
 
-def tracks(log, patterns, translation):
+def tracks(
+    log: LogFile,
+    patterns: TranslationJsonContentPatterns,
+    translation: Dict[str, List[str]],
+) -> None:
     """Mark up the tracks block."""
     if log.ripper == 'XLD':
         xld_tracks(log, patterns)
@@ -159,7 +178,7 @@ def tracks(log, patterns, translation):
         eac_tracks(log, patterns, translation)
 
 
-def xld_tracks(log, patterns):
+def xld_tracks(log: LogFile, patterns: TranslationJsonContentPatterns) -> None:
     """XLD tracks."""
     matches = xld_track_matches()
     indices = (
@@ -205,7 +224,11 @@ def xld_tracks(log, patterns):
             break
 
 
-def eac_tracks(log, patterns, translation):
+def eac_tracks(
+    log: LogFile,
+    patterns: TranslationJsonContentPatterns,
+    translation: Dict[str, List[str]],
+) -> None:
     """EAC tracks."""
     matches = eac_track_matches(translation)
 
@@ -239,7 +262,7 @@ def eac_tracks(log, patterns, translation):
             break
 
 
-def track_number(log, index, track_pattern):
+def track_number(log: LogFile, index: int, track_pattern: List[str]) -> Tuple[int, str]:
     """Parse track number and style the line."""
     if log.all_tracks and log.full_contents[index].startswith('All Tracks'):
         return (0, substitute(log.full_contents[index], '(.*)', 'log5'))
@@ -251,7 +274,12 @@ def track_number(log, index, track_pattern):
     return (track_num, line)
 
 
-def sub_crc(track, element, line, xld_colon=False):
+def sub_crc(
+    track: TranslationJsonContentPatternsTracksettings,
+    element: str,
+    line: str,
+    xld_colon: bool = False,
+):
     """Process the CRCs for markup."""
     re_crc = '([0-9A-F]{8})'
     if 'test crc' not in track:
@@ -262,15 +290,20 @@ def sub_crc(track, element, line, xld_colon=False):
         line = substitute(line, re_crc, 'good')
     if xld_colon:
         return substitute(line, ' +({}.+ :)'.format(element), 'log4')
-    return substitute(line, ' +({}.+)'.format(element), 'log4',)
+    return substitute(
+        line,
+        ' +({}.+)'.format(element),
+        'log4',
+    )
 
 
-def footer(log, translation):
+def footer(log: LogFile, translation: Dict[str, List[str]]) -> None:
     """Mark up the footer."""
     matches = (
         xld_footer_matches() if log.ripper == 'XLD' else eac_footer_matches(translation)
     )
 
+    assert log.index_footer is not None
     for i, line in enumerate(log.full_contents[log.index_footer :]):
         i += log.index_footer
         for class_ in matches:
@@ -283,14 +316,16 @@ def footer(log, translation):
             if log.ripper == 'XLD':
                 # XLD Checksum stuff goes here
                 if line.startswith('-----BEGIN XLD SIGNATURE-----'):
-                    log.full_contents[
-                        i
-                    ] = '<span class="good">-----BEGIN XLD SIGNATURE-----\n'
+                    log.full_contents[i] = (
+                        '<span class="good">-----BEGIN XLD SIGNATURE-----\n'
+                    )
                 elif line.startswith('-----END XLD SIGNATURE-----'):
                     log.full_contents[i] = '-----END XLD SIGNATURE-----</span>'
 
 
-def style_setting(line, class_, first_class='log5', include_colon=False):
+def style_setting(
+    line: str, class_, first_class='log5', include_colon: bool = False
+) -> str:
     """Style a setting line in the log (<setting_name> +: <setting>)."""
     if re.match(r'.+:.+', line):
         parts = line.split(':', 1)
@@ -303,7 +338,7 @@ def style_setting(line, class_, first_class='log5', include_colon=False):
     return line
 
 
-def style_statistic(line, class_):
+def style_statistic(line: str, class_: str) -> str:
     """Style a XLD statistic line."""
     if re.match(r'.+:.+', line):
         parts = line.split(':', 1)
@@ -319,7 +354,7 @@ def style_statistic(line, class_):
     return line
 
 
-def style_95_read_mode(line, patterns):
+def style_95_read_mode(line: str, patterns: TranslationJsonContentPatterns) -> str:
     """Style the EAC 95 read mode line."""
     # Burst mode doesn't have multiple settings in one line
     if ',' not in line:
@@ -334,6 +369,7 @@ def style_95_read_mode(line, patterns):
     parts[1:] = [part.strip() for part in parts[1].split(',')]
     num = 0
     p = patterns['95 settings']
+    assert p is not None
     for setting in [
         p['Read mode'],
         p['C2 pointers'],
@@ -351,7 +387,7 @@ def style_95_read_mode(line, patterns):
     return line
 
 
-def substitute(line, regex, class_):
+def substitute(line: str, regex: Union[str, Pattern[str]], class_: str) -> str:
     """Generate a span and put it in the line per the regex."""
     result = re.search(regex, line)
     if result:
@@ -362,7 +398,7 @@ def substitute(line, regex, class_):
     return line
 
 
-def sub_strong(line, regex):
+def sub_strong(line: str, regex: Union[str, Pattern[str]]) -> str:
     """Surround some patterns in <strong> tags."""
     result = re.search(regex, line)
     if result:
@@ -371,7 +407,7 @@ def sub_strong(line, regex):
     return line
 
 
-def sub_toc(line):
+def sub_toc(line: str) -> str:
     """Substitute the HTML markup into a line of the TOC."""
     return re.sub(
         r'([0-9]+)( +)\|( +)([0-9:\.]+)( +)\|( +)([0-9:\.]+)( +)\|( +)'
@@ -385,6 +421,6 @@ def sub_toc(line):
     )
 
 
-def re_paren(line):
+def re_paren(line: str) -> str:
     """Regex the comma. Quality docstring."""
     return re.sub(r'\(', r'\(', line)

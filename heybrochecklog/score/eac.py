@@ -9,11 +9,17 @@ from heybrochecklog.score.modules import combined, parsers, validation
 from heybrochecklog.shared import format_pattern as fmt_ptn
 from heybrochecklog.score.integrity import check_integrity
 
+# Type hinting
+from heybrochecklog.logfile import LogFile
+from typing_extensions import override
+from typing import Dict
+from re import Pattern
+
 
 class EACChecker(LogChecker):
     """This class analyzes >0.95 EAC Log Files."""
 
-    def check(self, main_log, integrity=False):
+    def check(self, main_log: LogFile, integrity: bool = False) -> LogFile:
         """Checks the EAC logs."""
         logs = combined.split_combined(main_log)
         for log in logs:
@@ -34,6 +40,7 @@ class EACChecker(LogChecker):
                 log, self.patterns['checksum'], 'V1.0 beta 1', 'EAC <1.0'
             )
             if self.markup:
+                assert self.translation is not None
                 markup(log, self.patterns, self.translation)
 
         main_log = combined.defragment(logs)
@@ -43,35 +50,41 @@ class EACChecker(LogChecker):
 
         return main_log
 
-    def check_version(self, log):
+    def check_version(self, log: LogFile) -> str:
         """Check the version of the log and verify it is acceptable."""
         regex = re.compile(r'Exact Audio Copy (V.*) from (.*)')
         return self.verify_version(regex, log.concat_contents[0], 'EAC')
 
-    def check_drive(self, log):
+    def check_drive(self, log: LogFile) -> str:
         """Check the drive of the log and verify it is an allowed drive."""
         regex = r' ?: (.*) Adapter:[ 0-9]+ID:[ 0-9]+$'
         return self.get_drive(regex, log.concat_contents[3])
 
-    def all_range_index(self, log, line):
+    @override
+    def all_range_index(self, log: LogFile, line: str) -> bool:
         """Match the Range Rip line in the log file."""
         if log.index_tracks is None and re.match(fmt_ptn(self.patterns['range']), line):
             return True
         return False
 
-    def all_range_index_action(self, log, line_num):
+    @override
+    def all_range_index_action(self, log: LogFile, line_num: int) -> None:
         """Action to take when the range rip line is matched."""
         log.track_indices.append(line_num)
         log.range = True
 
-    def check_bad_settings(self, log, line):
+    @override
+    def check_bad_settings(self, log: LogFile, line: str) -> None:
         """Evaluate the instant -100 point deductions."""
         bad_settings = self.patterns['bad settings']
         for sett, pattern in bad_settings.items():
             if re.match(fmt_ptn(pattern), line):
                 log.add_deduction(sett)
 
-    def evaluate_unmatched_settings(self, log, settings):
+    @override
+    def evaluate_unmatched_settings(
+        self, log: LogFile, settings: Dict[str, Pattern[str]]
+    ) -> None:
         """Override super to account for burst mode not having some settings."""
         burst_no_exist = ['Accurate stream', 'Audio cache', 'C2 pointers']
         if log.has_deduction('Read mode'):
@@ -87,7 +100,7 @@ class EACChecker(LogChecker):
 
         super().evaluate_unmatched_settings(log, settings)
 
-    def is_there_a_htoa(self, log):
+    def is_there_a_htoa(self, log: LogFile) -> None:
         """Check rip for Hidden Track One Audio."""
         # 6 second minimum for HTOA per EAC standards
         # Only accepted HTOA extraction technique for EAC is range-based
@@ -98,7 +111,8 @@ class EACChecker(LogChecker):
         if log.toc[list(log.toc)[0]][0] < 450 or not log.range:
             return
 
-        for line in log.contents[log.index_tracks + 1:]:
+        assert log.index_tracks is not None
+        for line in log.contents[log.index_tracks + 1 :]:
             if line.strip():
                 result = re.search(fmt_ptn(self.patterns['htoa']), line)
                 if result:
@@ -119,7 +133,7 @@ class EACChecker(LogChecker):
                     log.add_deduction('HTOA detected, but not extracted')
                 break
 
-    def check_tracks(self, log):
+    def check_tracks(self, log: LogFile) -> None:
         """Wrapper for the analyze_tracks method. Get track data for every track
         and check for errors.
         """
@@ -140,7 +154,8 @@ class EACChecker(LogChecker):
 
         self.analyze_tracks(log, track_settings, parsers.parse_errors_eac)
 
-    def evaluate_tracks(self, log):
+    @override
+    def evaluate_tracks(self, log: LogFile) -> None:
         """Evaluate the analyzed track data for deficiencies."""
         # AccurateRip for EAC Range Rip - AR results are at the bottom of the log.
         if log.range:
@@ -154,13 +169,14 @@ class EACChecker(LogChecker):
             # Check AccurateRip - Mismatching AR results can indicate problems even with T&C
             validation.analyze_accuraterip(log)
 
-    def is_log_integrity_valid(self, log):
+    def is_log_integrity_valid(self, log: LogFile) -> bool:
         data = str.join("", log.full_contents)
         integrity_result = check_integrity(data)
 
         return integrity_result != "LOG_NOT_OK"
 
-    def deduct_and_score(self, log, integrity=False):
+    @override
+    def deduct_and_score(self, log: LogFile, integrity: bool = False) -> None:
         """Process the accumulated deductions and score the log file."""
         # Deduct for all the per-track accumulated deductions.
         for error in log.track_errors:

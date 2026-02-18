@@ -4,12 +4,15 @@ import re
 
 from heybrochecklog.logfile import LogFile
 
+# Type hinting
+from typing import List
 
-def split_combined(log):
+
+def split_combined(log: LogFile) -> List[LogFile]:
     """Split a combined log into an array of logs. If there is a single
     log, return a list with one log inside it. Not relevant for XLD.
     """
-    logs = []
+    logs: List[LogFile] = []
 
     # Create a list of indices for combined log markers. By default # includes indices 0 and len()
     log_indices = (
@@ -37,7 +40,7 @@ def split_combined(log):
     return logs
 
 
-def defragment(logs, eac95=False):
+def defragment(logs: List[LogFile], eac95: bool = False) -> LogFile:
     """Re-combine split combined logs."""
     if len(logs) == 1 and not logs[0].htoa:
         return logs[0]
@@ -75,7 +78,7 @@ def defragment(logs, eac95=False):
     return logs[0]
 
 
-def sub_settings(logs, log):
+def sub_settings(logs: List[LogFile], log: LogFile) -> None:
     """Check settings of newer rip; add new deductions and pop fixed deductions."""
     # Remove the deductions from the first log if they aren't present in the final log,
     # but verify the number of tracks is consistent between the two.
@@ -88,7 +91,7 @@ def sub_settings(logs, log):
             logs[0].add_deduction(deduction)
 
 
-def sub_double_copy(logs, log):
+def sub_double_copy(logs: List[LogFile], log: LogFile) -> None:
     """Check two copy only rips and score as T&C Rip."""
     if logs[0].has_deduction('Test & Copy') and len(logs[0].tracks) == len(log.tracks):
         for new_track, original_track in zip(
@@ -101,7 +104,7 @@ def sub_double_copy(logs, log):
             logs[0].remove_deduction('Test & Copy')
 
 
-def sub_track_errors(logs, log):
+def sub_track_errors(logs: List[LogFile], log: LogFile) -> None:
     """Substitute newer ripped track data for older ripped track data."""
     for track in log.tracks:
         # Don't substitute track errors for aborted copies.
@@ -111,7 +114,7 @@ def sub_track_errors(logs, log):
             replace_crc_mismatches(track, logs, log)
 
 
-def replace_accumulated_errors(track, logs, log):
+def replace_accumulated_errors(track: int, logs: List[LogFile], log: LogFile) -> None:
     """Replace accumulated track errors."""
     for error in logs[0].track_errors:
         if track in log.track_errors[error]:
@@ -121,7 +124,7 @@ def replace_accumulated_errors(track, logs, log):
                 logs[0].track_errors[error].pop(i)
 
 
-def replace_crc_mismatches(track, logs, log):
+def replace_crc_mismatches(track: int, logs: List[LogFile], log: LogFile) -> None:
     """Replace CRC mismatch errors."""
     if track not in log.crc_mismatch:
         for i, original_track in enumerate(logs[0].crc_mismatch):
@@ -129,7 +132,7 @@ def replace_crc_mismatches(track, logs, log):
                 logs[0].crc_mismatch.pop(i)
 
 
-def analyze_htoa(logs, htoa_logs):
+def analyze_htoa(logs: List[LogFile], htoa_logs: List[LogFile]) -> None:
     """Analyze potential HTOA rips to and add deductions for CRCs and T&C."""
     # Remove htoa logs from logs list
     logs = [log for log in logs if log not in htoa_logs]
@@ -149,7 +152,7 @@ def analyze_htoa(logs, htoa_logs):
     logs.append(htoa_logs[0])
 
 
-def patch_htoa(logs, htoa_logs):
+def patch_htoa(logs: List[LogFile], htoa_logs: List[LogFile]) -> None:
     """Adjust the HTOA deductions based on the defragmented log."""
     htoa_ripped = any(log for log in htoa_logs if log.htoa_ripped)
 

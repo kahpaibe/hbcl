@@ -7,8 +7,17 @@ import re
 
 from heybrochecklog.shared import format_pattern as fmt_ptn
 
+# Type hinting
+from typing import Dict, List, TypedDict, Optional
 
-def eac_track_matches(translation):
+
+class XLDTrackMatches(TypedDict):
+    full_line: List[List[str]]
+    crc: List[str]
+    statistics: Dict[str, List[str]]
+
+
+def eac_track_matches(translation: Dict[str, List[str]]) -> Dict[str, List[str]]:
     """Generate the list of to-match lines from translations."""
     source_one = {
         'log4': ['1269', '1270', '1217', '1299', '1227', '1218'],
@@ -26,7 +35,7 @@ def eac_track_matches(translation):
     }
 
 
-def xld_track_matches():
+def xld_track_matches() -> XLDTrackMatches:
     """Return a dictionary containing the XLD matches."""
     return {
         'full_line': [
@@ -59,7 +68,7 @@ def xld_track_matches():
     }
 
 
-def eac_footer_matches(translation):
+def eac_footer_matches(translation: Dict[str, List[str]]) -> Dict[str, List[str]]:
     """Matches for the EAC footer block."""
     source = {
         'good': ['1336', '1222', '1225'],
@@ -91,7 +100,7 @@ def eac_footer_matches(translation):
     return matches
 
 
-def xld_footer_matches():
+def xld_footer_matches() -> Dict[str, List[str]]:
     """Matches for the XLD footer block."""
     return {
         'good': ['No errors occurred', 'End of status report'],
@@ -99,7 +108,7 @@ def xld_footer_matches():
     }
 
 
-def xld_ar_summary():
+def xld_ar_summary() -> Dict[str, List[str]]:
     """Matches for the XLD AccurateRip Summary block."""
     return {
         'good': [
@@ -115,7 +124,13 @@ def xld_ar_summary():
     }
 
 
-def generate_match_type(translation, source, matches=None, prepend='', append=''):
+def generate_match_type(
+    translation: Dict[str, List[str]],
+    source: Dict[str, List[str]],
+    matches: Optional[Dict[str, List[str]]] = None,
+    prepend: str = '',
+    append: str = '',
+) -> Dict[str, List[str]]:
     """Function to generate the match types."""
     matches = {} if not matches else matches
     for match_type in source.keys():
@@ -129,7 +144,7 @@ def generate_match_type(translation, source, matches=None, prepend='', append=''
     return matches
 
 
-def re_paren(line):
+def re_paren(line: List[str]) -> str:
     """Regex the comma. Quality docstring."""
-    line = re.sub(r'\(', r'\(', fmt_ptn(line))
-    return re.sub(r'\)', r'\)', line)
+    line_ = re.sub(r'\(', r'\(', fmt_ptn(line))
+    return re.sub(r'\)', r'\)', line_)

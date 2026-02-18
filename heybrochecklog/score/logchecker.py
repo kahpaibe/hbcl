@@ -7,18 +7,90 @@ import re
 from heybrochecklog import UnrecognizedException
 from heybrochecklog.resources import VERSIONS
 from heybrochecklog.score.modules import drives, parsers, validation
-from heybrochecklog.shared import format_pattern as fmt_ptn, format_pattern_for_setting_evaluation as fmt_ptn_setting
+from heybrochecklog.shared import (
+    format_pattern as fmt_ptn,
+    format_pattern_for_setting_evaluation as fmt_ptn_setting,
+)
+
+# Type hinting
+from typing import (
+    Dict,
+    TypedDict,
+    List,
+    Literal,
+    Optional,
+    TYPE_CHECKING,
+    Callable,
+    ItemsView,
+    cast
+)
+from re import Pattern
+
+if TYPE_CHECKING:  # Avoid circular imports
+    from heybrochecklog.logfile import LogFile
+from abc import ABC, abstractmethod
+
+TranslationJsonContentPatternsTracksettings = TypedDict(
+    "TranslationJsonContentPatternsTracksettings",
+    {
+        "filename": List[str],
+        "pregap": List[str],
+        "peak": List[str],
+        "test crc": List[str],
+        "copy crc": List[str],
+        # XLD only
+        "gain": Optional[List[str]],
+    },
+)
+
+# TODO: also put EAC only as Optional and add corresponding asserts
+TranslationJsonContentPatterns = TypedDict(
+    "TranslationJsonContentPatterns",
+    {
+        "drive": List[str],
+        "settings": Dict[str, List[str]],
+        'full line settings': Dict[str, List[str]],
+        "bad settings": Dict[str, List[str]],
+        "proper settings": Dict[str, List[str]],
+        "toc": List[str],
+        "range": List[str],
+        "htoa": List[str],
+        "track": List[str],
+        "track settings": TranslationJsonContentPatternsTracksettings,
+        "track errors": Dict[str, List[str]],
+        "accuraterip": Dict[str, List[str]],
+        "range accuraterip": Dict[str, List[str]],
+        "footer": List[str],
+        "checksum": List[str],
+        # XLD only
+        "disc type": Optional[List[str]],
+        "All Tracks": Optional[List[str]],
+        # EAC95 only
+        "95 settings": Optional[Dict[str, List[str]]], # WARNING: never defined in translation files (but needed for style_95_read_mode(...))
+    },
+)
 
 
-class LogChecker:
+class TranslationJsonContent(TypedDict):
+    patterns: TranslationJsonContentPatterns
+    translation: Dict[str, List[str]]
+
+class LogChecker(ABC):
     """The base log checker to be subclassed by more specific log checkers."""
 
-    def __init__(self, patterns, translation=None, markup=False):
+    def __init__(
+        self,
+        patterns: TranslationJsonContentPatterns,
+        translation: Optional[Dict[str, List[str]]] = None,
+        markup: bool = False,
+    ):
         self.patterns = patterns
         self.translation = translation
         self.markup = markup
 
-    def verify_version(self, regex, line, ripper):
+    def verify_version(
+        self, regex: Pattern[str], line: str, ripper: Literal['EAC', 'XLD']
+    ) -> str:
         """Verify that the version of the log is legitimate."""
         result = regex.search(line)
         if result:
@@ -27,7 +99,7 @@ class LogChecker:
                 return version
         raise UnrecognizedException('Unrecognized {} version'.format(ripper))
 
-    def get_drive(self, regex, line):
+    def get_drive(self, regex: str, line: str) -> str:
         """Get the name of the ripping drive used."""
         re_drive = re.compile(fmt_ptn(self.patterns['drive']) + regex)
         result = re_drive.match(line)
@@ -35,9 +107,12 @@ class LogChecker:
             return result.group(1).strip()
         raise UnrecognizedException('Could not parse ripping drive')
 
-    def index_log(self, log, ninety_five=False):
+    def index_log(self, log: LogFile, ninety_five: bool = False) -> None:
         """Index key line numbers inside the log."""
         if ninety_five:
+            assert (
+                self.translation is not None
+            ), 'Translation should have been provided.'
             read_mode = re.compile(re.sub(' +', ' ', fmt_ptn(self.translation['1234'])))
         else:
             read_mode = re.compile(fmt_ptn(self.patterns['settings']['Read mode']))
@@ -46,6 +121,7 @@ class LogChecker:
             if 'toc' in self.patterns
             else None
         )
+        assert toc is not None
 
         for i, line in enumerate(log.contents):
             if log.index_settings is None and read_mode.match(line):
@@ -59,7 +135,7 @@ class LogChecker:
 
         self.validate_indices(log)
 
-    def validate_indices(self, log):
+    def validate_indices(self, log: LogFile) -> None:
         """Validate the indices of notable lines in the log."""
         if not log.track_indices:
             raise UnrecognizedException('No tracks found')
@@ -76,21 +152,23 @@ class LogChecker:
         if not log.index_toc:
             log.index_toc = log.index_tracks
 
-    def all_range_index(self, log, line):
+    @abstractmethod
+    def all_range_index(self, log: LogFile, line: str) -> bool:
         """Match the All Tracks or Range Rip line, depending on subclassed ripper."""
         pass
 
-    def all_range_index_action(self, log, line_num):
+    @abstractmethod
+    def all_range_index_action(self, log: LogFile, line_num: int) -> None:
         """Action to take when detection of the All Tracks or Range Rip line occurs."""
         pass
 
-    def evaluate_settings(self, log):
+    def evaluate_settings(self, log: LogFile) -> None:
         """Evaluate the log for usage of proper rip settings."""
         psettings = self.patterns['settings']
         proper_settings = self.patterns['proper settings']
 
         # Compile regex beforehand
-        settings = {}
+        settings: Dict[str, Pattern[str]] = {}
         colon = r' : (.*)' if log.language == 'english' else r'(?: :)? : (.*)'
         for key, setting in psettings.items():
             settings[key] = re.compile(fmt_ptn_setting(setting) + colon)
@@ -112,11 +190,14 @@ class LogChecker:
 
         self.evaluate_unmatched_settings(log, settings)
 
-    def check_bad_settings(self, log, line):
+    # @abstractmethod # Not needed for XLD
+    def check_bad_settings(self, log: LogFile, line: str) -> None:
         """Evaluate the bad settings, override in subclass if desired."""
         pass
 
-    def evaluate_unmatched_settings(self, log, settings):
+    def evaluate_unmatched_settings(
+        self, log: LogFile, settings: Dict[str, Pattern[str]]
+    ) -> None:
         """Evaluate all unmatched settings and deduct for them."""
         for key in settings:
             if log.range and key == 'Gap handling':
@@ -132,7 +213,13 @@ class LogChecker:
                     'One or more required settings could not be found'
                 )
 
-    def analyze_tracks(self, log, track_settings, parse_errors, accuraterip=True):
+    def analyze_tracks(
+        self,
+        log: LogFile,
+        track_settings: Dict[str, Pattern[str]],
+        parse_errors: Callable[[LogFile, ItemsView[str, List[str]], int, str], None],
+        accuraterip: bool = True,
+    ) -> None:
         """Get track data for each track and check for errors."""
         ar_patterns = self.patterns['accuraterip'].items() if accuraterip else {}
         err_patterns = self.patterns['track errors'].items()
@@ -150,21 +237,23 @@ class LogChecker:
                 # Ripping Errors - Loop through errors in json track errors.
                 parse_errors(log, err_patterns, track_num, line)
 
-            validation.check_crc_mismatch(log, track_num, track_data)
+            td = cast(TranslationJsonContentPatternsTracksettings, track_data)
+            validation.check_crc_mismatch(log, track_num, td)
 
-            log.tracks[track_num] = track_data
+            log.tracks[track_num] = td
             if log.track_indices[i + 1] == max(log.track_indices):
                 break
 
         self.evaluate_tracks(log)
 
-    def evaluate_tracks(self, log):
+    @abstractmethod
+    def evaluate_tracks(self, log: LogFile) -> None:
         """Evaluate the analyzed track data for deficiencies (actually split off the
         logchecker-specific) stuff ;)
         """
         pass
 
-    def deduct_and_score(self, log, integrity=False):
+    def deduct_and_score(self, log: LogFile, integrity: bool = False) -> None:
         """Process the accumulated deductions and score the log file."""
         if log.crc_mismatch:
             log.add_deduction('CRC mismatch', len(log.crc_mismatch))

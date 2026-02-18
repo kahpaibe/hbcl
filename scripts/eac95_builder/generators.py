@@ -17,7 +17,7 @@ def substitute_translations(patterns, translation):
                     patterns[key][sub_key] = remove_colon(translation[sub_value])
 
 
-def remove_colon(string):
+def remove_colon(string: str) -> str:
     """Remove the trailing colon from some lines."""
     string = string.strip()
     string = re.sub(r'\s*(?::|：)\s*', '', string)
@@ -45,8 +45,11 @@ def ninety_five_settings(patterns, translation):
     rest_of_line[0] = rest_of_line[0].lstrip(',')
 
     if len(rest_of_line) != 3:  # We're looking for two commas here.
-        print('Error: ({}) Failed to split EAC95 line. Please fill out manually.'
-              .format(translation[1]))
+        print(
+            'Error: ({}) Failed to split EAC95 line. Please fill out manually.'.format(
+                translation[1]
+            )
+        )
         return
 
     # Assign the split variables to the patterns dict.
@@ -63,6 +66,6 @@ def copy_crc_substitution(patterns, translation):
     patterns['track settings']['copy crc'] = '(?:{}|{})'.format(copycrc, crc)
 
 
-def regex_out_paren(line):
+def regex_out_paren(line: str) -> str:
     """Regex the comma. Quality docstring."""
     return re.sub(r'\(', r'\(', line)

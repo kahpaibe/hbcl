@@ -8,11 +8,17 @@ from heybrochecklog.score.logchecker import LogChecker
 from heybrochecklog.score.modules import combined, drives, parsers, validation
 from heybrochecklog.shared import format_pattern as fmt_ptn
 
+# Type hinting
+from heybrochecklog.logfile import LogFile
+from typing_extensions import override
+from typing import Dict
+from re import Pattern
+
 
 class EAC95Checker(LogChecker):
     """This class analyzes <=0.95 EAC Log Files."""
 
-    def check(self, main_log, integrity=False):
+    def check(self, main_log: LogFile, integrity: bool = False) -> LogFile:
         """Checks the EAC logs."""
         logs = combined.split_combined(main_log)
         for log in logs:
@@ -27,6 +33,7 @@ class EAC95Checker(LogChecker):
             self.evaluate_settings(log)
             self.check_tracks(log)
             if self.markup:
+                assert self.translation is not None
                 markup(log, self.patterns, self.translation)
 
         main_log = combined.defragment(logs, eac95=True)
@@ -35,23 +42,26 @@ class EAC95Checker(LogChecker):
 
         return main_log
 
-    def check_drive(self, log):
+    def check_drive(self, log: LogFile) -> str:
         """Check the drive of the log and verify it is an allowed drive."""
         regex = r' ?: (.*) Adapter:[ 0-9]+ID:[ 0-9]+$'
         return self.get_drive(regex, log.concat_contents[2])
 
-    def all_range_index(self, log, line):
+    @override
+    def all_range_index(self, log: LogFile, line: str) -> bool:
         """Match the Range Rip line in the log file."""
         if log.index_tracks is None and re.match(fmt_ptn(self.patterns['range']), line):
             return True
         return False
 
-    def all_range_index_action(self, log, line_num):
+    @override
+    def all_range_index_action(self, log: LogFile, line_num: int) -> None:
         """Action to take when the range rip line is matched."""
         log.track_indices.append(line_num)
         log.range = True
 
-    def evaluate_settings(self, log):
+    @override
+    def evaluate_settings(self, log: LogFile) -> None:
         """Evaluate the log for usage of proper rip settings.
         Overwriting the base class for different 0.95 behavior.
         """
@@ -73,6 +83,7 @@ class EAC95Checker(LogChecker):
                 if result:
                     if key == 'Drive offset':
                         offset = re.search(r'.+: ([-0-9]+)', line)
+                        assert offset is not None
                         drives.eval_offset(log, offset.group(1))
                     del settings[key]
             for key, setting in list(full_settings.items()):
@@ -87,7 +98,9 @@ class EAC95Checker(LogChecker):
 
         self.evaluate_unmatched_settings(log, settings)
 
-    def check_offset(self, log, line, off_settings):
+    def check_offset(
+        self, log: LogFile, line: str, off_settings: Dict[str, Pattern[str]]
+    ) -> bool:
         """Check a log file line for proper offset."""
         found = False
         for key, setting in off_settings.items():
@@ -101,7 +114,8 @@ class EAC95Checker(LogChecker):
 
         return found
 
-    def check_bad_settings(self, log, line):
+    @override
+    def check_bad_settings(self, log: LogFile, line: str) -> None:
         """Evaluate the instant -100 point deductions
         (destructive normalization and compression offset)."""
         bad_settings = self.patterns['bad settings']
@@ -109,15 +123,19 @@ class EAC95Checker(LogChecker):
             if re.search(fmt_ptn(pattern), line):
                 log.add_deduction(sett)
 
-    def evaluate_unmatched_settings(self, log, settings):
+    @override
+    def evaluate_unmatched_settings(
+        self, log: LogFile, settings: Dict[str, Pattern[str]]
+    ) -> None:
         """Evaluate all unmatched settings and deduct for them.
-        <=0.95 is using a match/no match string algorithm, so it's a deduction if no match."""
+        <=0.95 is using a match/no match string algorithm, so it's a deduction if no match.
+        """
         if log.has_deduction('Combined offset') and 'Drive offset' in settings:
             del settings['Drive offset']
         for key in settings:
             log.add_deduction(key)
 
-    def check_tracks(self, log):
+    def check_tracks(self, log: LogFile) -> None:
         """Get track data for each track and check for errors."""
         tsettings = self.patterns['track settings']
         track_settings = {
@@ -136,13 +154,15 @@ class EAC95Checker(LogChecker):
             log, track_settings, parsers.parse_errors_eac, accuraterip=False
         )
 
-    def evaluate_tracks(self, log):
+    @override
+    def evaluate_tracks(self, log: LogFile) -> None:
         """Evaluate the analyzed track data for deficiencies."""
         # Deduct for a Range Rip
         if log.range:
             log.add_deduction('Range rip')
 
-    def deduct_and_score(self, log):
+    @override
+    def deduct_and_score(self, log: LogFile, integrity: bool = False) -> None:
         """Process the accumulated deductions and score the log file."""
         # EAC <=0.95 mandatory deductions.
         log.add_deduction('EAC 0.95')

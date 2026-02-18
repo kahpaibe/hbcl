@@ -1,3 +1,6 @@
+# Type hinting
+from typing import Dict, List, Tuple, Union
+
 EAC_RIPLINES = {
     'english': 'EAC extraction logfile from',
     'slovak': 'EAC log súbor extrakcie z',
@@ -63,13 +66,14 @@ DEDUCTIONS = {
     ],
     'Normalization': ['Destructive normalization used', 100],
     'Compression offset': ['Ripped with compression offset', 100],
-    'Log Checksum Not Match': ['Log checksum does not match', 100]
+    'Log Checksum Not Match': ['Log checksum does not match', 100],
 }
 
-VERSIONS = {
+# WARNING: Union[Tuple[str, str], str] as type requirements for parse_checksum(...) but is ununsed in practice.
+VERSIONS: Dict[str, List[Union[Tuple[str, str], str]]] = {
     'EAC': [
         ('V1.8', '15. July 2024'),
-        ('V1.7', '14. July 2024'), # This is removed due to bugs, adding support to it nevertheless
+        ('V1.7','14. July 2024',),  # This is removed due to bugs, adding support to it nevertheless
         ('V1.6', '23. October 2020'),
         ('V1.5', '20. February 2020'),
         ('V1.4', '3. February 2020'),

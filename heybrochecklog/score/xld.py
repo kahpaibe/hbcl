@@ -9,11 +9,15 @@ from heybrochecklog.score.modules import parsers, validation
 from heybrochecklog.shared import format_pattern as fmt_ptn
 from heybrochecklog.score.xld_integrity import xld_verify
 
+# Type hinting
+from typing_extensions import override
+from heybrochecklog.logfile import LogFile
+
 
 class XLDChecker(LogChecker):
     """This class analyzes XLD Log Files."""
 
-    def check(self, log, integrity=False):
+    def check(self, log: LogFile, integrity: bool = False) -> LogFile:
         """Checks the XLD logs."""
         if len(log.contents) < 25:
             raise UnrecognizedException('Cannot parse log file; log file too short')
@@ -36,24 +40,29 @@ class XLDChecker(LogChecker):
 
         self.deduct_and_score(log, integrity)
         if self.markup:
+            assert self.translation is not None
             markup(log, self.patterns, self.translation)
 
         return log
 
-    def check_version(self, log):
+    def check_version(self, log: LogFile) -> str:
         """Check the version of the log and verify it is acceptable."""
         regex = re.compile(r'X Lossless Decoder version ([0-9abc]+) \(([0-9\.]+)\)')
         return self.verify_version(regex, log.concat_contents[0], 'XLD')
 
-    def check_drive(self, log):
+    def check_drive(self, log: LogFile) -> str:
         """Check the drive of the log and verify it is an allowed drive."""
         regex = r' *: (.*)?(?: +\(revision [A-Z0-9\.]\))?$'
         return self.get_drive(regex, log.concat_contents[3])
 
-    def check_cdr(self, log):
+    def check_cdr(self, log: LogFile) -> None:
         """Check the log to see if CD-R is flagged."""
+        assert (
+            self.patterns['disc type'] is not None
+        ), '"disc type" pattern required for XLD logs'
         result = re.search(
-            fmt_ptn(self.patterns['disc type']) + r' : (.*)', log.concat_contents[4],
+            fmt_ptn(self.patterns['disc type']) + r' : (.*)',
+            log.concat_contents[4],
         )
         if result:
             if result.group(1) == 'Pressed CD':
@@ -65,19 +74,24 @@ class XLDChecker(LogChecker):
             else:
                 raise UnrecognizedException('Unknown disc type')
 
-    def all_range_index(self, log, line):
+    @override
+    def all_range_index(self, log: LogFile, line: str) -> bool:
         """Match the Range Rip line in the log file."""
+        assert (
+            self.patterns["All Tracks"] is not None
+        ), '"All Tracks" pattern required for XLD logs'
         if log.all_tracks is None and re.match(
             fmt_ptn(self.patterns['All Tracks']), line
         ):
             return True
         return False
 
-    def all_range_index_action(self, log, line_num):
+    @override
+    def all_range_index_action(self, log: LogFile, line_num: int) -> None:
         """Action to take when the range rip line is matched."""
         log.all_tracks = line_num
 
-    def is_there_a_htoa(self, log):
+    def is_there_a_htoa(self, log: LogFile) -> None:
         """Check rip for Hidden Track One Audio."""
         # 450 sectors or 6 seconds minimum, one track rip with pregap (containing HTOA)
         # appended to the first track. It is then split from the first track with
@@ -88,9 +102,10 @@ class XLDChecker(LogChecker):
                     log.add_deduction('HTOA extracted')
                     break
 
-    def check_tracks(self, log):
+    def check_tracks(self, log: LogFile) -> None:
         """Get track data for each track and check for errors."""
         tsettings = self.patterns['track settings']
+        assert 'gain' in tsettings and tsettings['gain'] is not None
         track_settings = {
             'filename': re.compile(
                 r'\s+' + fmt_ptn(tsettings['filename']) + r' : (.*?\/.*?\..*)'
@@ -118,7 +133,8 @@ class XLDChecker(LogChecker):
 
         self.analyze_tracks(log, track_settings, parsers.parse_errors_xld)
 
-    def evaluate_tracks(self, log):
+    @override
+    def evaluate_tracks(self, log: LogFile) -> None:
         """Evaluate the analyzed track data for deficiencies (actually split off the
         logchecker-specific) stuff ;)
         """
@@ -129,7 +145,8 @@ class XLDChecker(LogChecker):
         # Check AccurateRip - Mismatching AR results can indicate problems even with T&C
         validation.analyze_accuraterip(log)
 
-    def deduct_and_score(self, log, integrity=False):
+    @override
+    def deduct_and_score(self, log: LogFile, integrity: bool = False) -> None:
         """Process the accumulated deductions and score the log file."""
         # Check for presence of Track gain in the tracks.
         if not all('gain' in log.tracks[track] for track in log.tracks):

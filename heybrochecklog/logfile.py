@@ -4,22 +4,41 @@ import re
 
 from heybrochecklog.resources import DEDUCTIONS
 
+# Type hinting
+from typing import Optional, Literal, List, Dict, TypedDict, Union, Required
+from heybrochecklog.score.logchecker import TranslationJsonContentPatternsTracksettings
+
+
+class LogFileDict(TypedDict, total=False):
+    flagged: Required[bool]
+    contents: Required[str]
+    unrecognized: Required[Union[str, bool]]
+    deductions: List[str]
+    score: int
+    name: Optional[str]
+    ripper: Optional[Literal['EAC', 'XLD', 'EAC95']]
+    version: Optional[str]
+
 
 class LogFile:
     """A log file class containing variables, score, deductions, etc."""
 
-    def __init__(self, contents, ripper=None):
+    def __init__(
+        self,
+        contents: List[str],
+        ripper: Optional[Literal['EAC', 'XLD', 'EAC95']] = None,
+    ):
 
         self.full_contents = contents
         self.contents = format_full_contents(contents)
         self.concat_contents = [line for line in self.contents if line.strip()]
         self.score = 100
-        self.ripper = ripper
-        self.language = None
-        self.drive = None
-        self.version = None
-        self.album = None
-        self.unrecognized = None
+        self.ripper: Optional[Literal['EAC', 'XLD', 'EAC95']] = ripper
+        self.language: Optional[str] = None
+        self.drive: Optional[str] = None
+        self.version: Optional[str] = None
+        self.album: Optional[str] = None
+        self.unrecognized: Optional[str] = None
 
         # Some other log settings
         self.range = False
@@ -31,9 +50,9 @@ class LogFile:
 
         # Important parts of the log
         self.checksum = False
-        self.all_tracks = None
+        self.all_tracks: Optional[int] = None
         self.deductions = {}
-        self.crc_mismatch = []
+        self.crc_mismatch: List[int] = []
         self.track_errors = {
             "Aborted copy": [],
             "Timing problem": [],
@@ -47,19 +66,23 @@ class LogFile:
         self.toc = {}
         self.accuraterip = []
         self.track_indices = []
-        self.tracks = {}
+        self.tracks: Dict[int, TranslationJsonContentPatternsTracksettings] = {}
 
         # Indexes of log locations
-        self.index_settings = None
-        self.index_toc = None
-        self.index_tracks = None
-        self.index_footer = None
+        self.index_settings: Optional[int] = None
+        self.index_toc: Optional[int] = None
+        self.index_tracks: Optional[int] = None
+        self.index_footer: Optional[int] = None
 
         # Flagged = auto report log
-        self.flagged = False
+        self.flagged: bool = False
 
-    def to_dict(self):
+    def to_dict(self) -> LogFileDict:
         """Return a dict of the log analysis."""
+        self.unrecognized
+        self.flagged
+        self.full_contents
+
         if self.unrecognized:
             return {
                 'unrecognized': self.unrecognized,
@@ -134,8 +157,8 @@ def format_full_contents(full_contents):
     Format raw contents by stripping spaces, blank lines, and filtering
     out unicode crap.
     """
-    contents = [re.sub(r'\s+', ' ', l.rstrip()) for l in full_contents]
-    contents = [re.sub('：', ':', l) for l in contents]
-    contents = [re.sub('，', ', ', l) for l in contents]
+    contents = [re.sub(r'\s+', ' ', c.rstrip()) for c in full_contents]
+    contents = [re.sub('：', ':', c) for c in contents]
+    contents = [re.sub('，', ', ', c) for c in contents]
 
     return contents

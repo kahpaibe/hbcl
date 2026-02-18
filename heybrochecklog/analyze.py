@@ -8,14 +8,18 @@ import re
 from heybrochecklog import UnrecognizedException
 from heybrochecklog.resources import EAC_RIPLINES
 
+# Type hinting
+from heybrochecklog.logfile import LogFile
+from typing import Literal, List
 
-def analyze_log(log):
+
+def analyze_log(log: LogFile) -> None:
     """Analyze a log file and determine some generic background information."""
     log.ripper = get_ripper(log.contents)
     log.language = determine_language(log)
 
 
-def get_ripper(contents):
+def get_ripper(contents: List[str]) -> Literal['EAC', 'XLD', 'EAC95']:
     """Determine the ripper used in the log."""
     if not contents:  # Is file empty?
         raise UnrecognizedException('Empty log file')
@@ -37,13 +41,13 @@ def get_ripper(contents):
             raise UnrecognizedException('Unrecognized ripper')
 
 
-def determine_language(log):
+def determine_language(log: LogFile) -> str:
     """Determine the language of the log file, and verify that it is an EAC log file."""
     if log.ripper == 'XLD':
         return 'english'
 
     useful_contents = [
-        re.sub(r'\s+', ' ', l.rstrip()) for l in log.contents if l.strip()
+        re.sub(r'\s+', ' ', c.rstrip()) for c in log.contents if c.strip()
     ]
     for line in useful_contents[:2]:
         for language, line_starter in EAC_RIPLINES.items():

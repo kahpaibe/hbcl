@@ -2,8 +2,12 @@
 
 from heybrochecklog import UnrecognizedException
 
+# Type hinting
+from heybrochecklog.logfile import LogFile
+from heybrochecklog.score.logchecker import TranslationJsonContentPatternsTracksettings
 
-def analyze_accuraterip(log):
+
+def analyze_accuraterip(log: LogFile) -> None:
     """Analyze the AccurateRip results in the log."""
     if log.accuraterip:
         for ar_result in log.accuraterip:
@@ -18,14 +22,18 @@ def analyze_accuraterip(log):
         log.add_deduction('AccurateRip')
 
 
-def check_crc_mismatch(log, track_num, track_data):
+def check_crc_mismatch(
+    log: LogFile,
+    track_num: int,
+    track_data: TranslationJsonContentPatternsTracksettings,
+) -> None:
     """Check a track block for a CRC mismatch."""
     if all(data in track_data for data in ['test crc', 'copy crc']):
         if track_data['test crc'] != track_data['copy crc']:
             log.crc_mismatch.append(track_num)
 
 
-def validate_track_count(log):
+def validate_track_count(log: LogFile) -> None:
     """Verify the presence of all tracks and check for a data track."""
     if not log.range:
         # Data tracks have one extra ToC entry, but one less ripped track
@@ -36,7 +44,7 @@ def validate_track_count(log):
                 raise UnrecognizedException('Not all tracks are represented in the log')
 
 
-def validate_track_settings(log, xld=False):
+def validate_track_settings(log: LogFile, xld: bool = False) -> None:
     """Also verify that each track contains the required data."""
     if xld:
         if log.range:

@@ -7,8 +7,12 @@ import sqlite3
 from heybrochecklog import UnrecognizedException
 from heybrochecklog.shared import get_path
 
+# Type hinting
+from heybrochecklog.logfile import LogFile
+from typing import List, Tuple
 
-def eval_offset(log, offset):
+
+def eval_offset(log: LogFile, offset: str) -> None:
     """Validate the offset used by the ripped drive."""
     if not re.match('-?[0-9]+', offset):
         raise UnrecognizedException('Could not parse drive offset.')
@@ -41,7 +45,7 @@ def eval_offset(log, offset):
         )
 
 
-def check_for_virtual_drives(log):
+def check_for_virtual_drives(log: LogFile) -> bool:
     """Check for usage of virtual drives; they aren't good and should be reported."""
     fake_drives = [
         'Generic DVD-ROM SCSI CdRom Device'
@@ -52,8 +56,9 @@ def check_for_virtual_drives(log):
     return False
 
 
-def prep_drive_name(log):
+def prep_drive_name(log: LogFile) -> str:
     """Prepare the drive name for a DB query."""
+    assert log.drive is not None
     drive = sub_drive_names(log.drive)
     drive_words = re.split(r'[^A-Za-z0-9]+', drive)
     drivestr = '%" AND Name LIKE "%'.join(drive_words)
@@ -61,7 +66,7 @@ def prep_drive_name(log):
     return drivestr
 
 
-def sub_drive_names(drive):
+def sub_drive_names(drive: str) -> str:
     """Perform regex substitution actions on the drive name for better query results."""
     # Replace generic companies with real companies?
     drive = re.sub(r'JLMS', 'Lite-ON', drive)
@@ -72,7 +77,7 @@ def sub_drive_names(drive):
     return drive
 
 
-def drive_db_query(drivestr):
+def drive_db_query(drivestr: str) -> List[Tuple[str,]]:
     """Query the SQLite3 DB for the drive offset."""
     db_path = os.path.join(get_path(), 'resources', 'drives.db')
     conn = sqlite3.connect(db_path)

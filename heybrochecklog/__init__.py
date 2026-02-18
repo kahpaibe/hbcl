@@ -1,12 +1,17 @@
-class UnrecognizedException(Exception):
-    pass
-
-
 import argparse  # noqa: E402
 from pathlib import Path  # noqa: E402
 
 from heybrochecklog.score import score_log  # noqa: E402
 from heybrochecklog.translate import translate_log  # noqa: E402
+
+# Type hinting
+from heybrochecklog.translate import TranslationDict
+from heybrochecklog.logfile import LogFileDict
+from argparse import Namespace
+
+
+class UnrecognizedException(Exception):
+    pass
 
 
 def parse_args():
@@ -37,7 +42,7 @@ def parse_args():
         '-ei',
         '--experimental-integrity',
         help='Enable Log Integrity Checking (Experimental, EAC & XLD only)',
-        action='store_true'
+        action='store_true',
     )
 
     return parser.parse_args()
@@ -56,10 +61,11 @@ def runner():
             score_(args, log_file, log_path)
 
 
-def score_(args, log_file, log_path):
+def score_(args: Namespace, log_file: Path, log_path: str) -> None:
     log = score_log(log_file, args.markup, args.experimental_integrity)
     if args.score_only:
         if not log['unrecognized']:
+            assert 'score' in log
             print(log['score'])
         else:
             print('Log is unrecognized: {}'.format(log['unrecognized']))
@@ -70,7 +76,7 @@ def score_(args, log_file, log_path):
             print('Cannot encode logpath: {}'.format(error))
 
 
-def translate_(args, log_file, log_path):
+def translate_(args: Namespace, log_file: Path, log_path: str) -> None:
     log = translate_log(log_file)
     try:
         print(format_translation(log_path, log))
@@ -78,7 +84,7 @@ def translate_(args, log_file, log_path):
         print('Cannot encode logpath: {}'.format(error))
 
 
-def format_score(logpath, log, markup):
+def format_score(logpath: str, log: LogFileDict, markup) -> str:
     """Turn a log file JSON into a pretty string."""
     output = []
     output.append('\nLog: ' + logpath)
@@ -87,9 +93,12 @@ def format_score(logpath, log, markup):
     else:
         if log['flagged']:
             output.append('\nLog is flagged: {}'.format(log['flagged']))
+        assert 'name' in log
         output.append('\nDisc name: {}'.format(log['name']))
+        assert 'score' in log
         output.append('\nScore: {}'.format(log['score']))
 
+        assert 'deductions' in log
         if log['deductions']:
             output.append('\nDeductions:')
             for deduction in log['deductions']:
@@ -101,8 +110,11 @@ def format_score(logpath, log, markup):
     return '\n'.join(output)
 
 
-def format_translation(logpath, log):
+def format_translation(logpath: str, log: TranslationDict) -> str:
     """Turn a translated log JSON into a pretty string."""
+    assert 'language' in log
+    assert 'log' in log
+
     output = []
     output.append('\nLog: ' + logpath)
 

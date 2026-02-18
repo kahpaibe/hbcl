@@ -2,7 +2,6 @@
 
 import re  # eeeeeeeeeeeeeeeeeeeee
 
-
 def substitute_translations(patterns, translation):
     """Substitute the translated strings in for their string IDs."""
     for key, value in patterns.items():
@@ -14,7 +13,7 @@ def substitute_translations(patterns, translation):
                     patterns[key][sub_key] = remove_colon(translation[sub_value])
 
 
-def remove_colon(string):
+def remove_colon(string: str) -> str:
     """Remove the trailing colon from some lines."""
     string = string.strip()
     string = re.sub(r'\s*(?::|：)\s*', '', string)
@@ -55,7 +54,7 @@ def accuraterip(patterns, translation):
     patterns['accuraterip']['bad match'] += confidence_regex
 
 
-def range_accuraterip(patterns, translation):
+def range_accuraterip(patterns , translation):
     """Generate the lines for range rip AccurateRip."""
     confidence_regex = r'([0-9]+)\) \[[A-Z0-9]{8}]'
     track = regex_out_paren(translation[1226])
@@ -63,13 +62,17 @@ def range_accuraterip(patterns, translation):
     not_accurate = regex_out_paren(translation[1278])
     not_present = regex_out_paren(translation[1279])
 
-    patterns['range accuraterip']['match'] = '{} [0-9]+ {} {}'.format(track, accurate,
-                                                                      confidence_regex)
-    patterns['range accuraterip']['no match'] = '{} [0-9]+ {} {}'.format(track, not_accurate,
-                                                                         confidence_regex)
-    patterns['range accuraterip']['no result'] = '{} [0-9]+ {}'.format(track, not_present)
+    patterns['range accuraterip']['match'] = [
+        '{} [0-9]+ {} {}'.format(track, accurate, confidence_regex)
+    ]
+    patterns['range accuraterip']['no match'] = [
+        '{} [0-9]+ {} {}'.format(track, not_accurate, confidence_regex)
+    ]
+    patterns['range accuraterip']['no result'] = [
+        '{} [0-9]+ {}'.format(track, not_present)
+    ]
 
 
-def regex_out_paren(line):
+def regex_out_paren(line: str) -> str:
     """Regex the comma. Quality docstring."""
     return re.sub(r'\(', r'\(', line)

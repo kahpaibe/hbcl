@@ -18,16 +18,19 @@ import chardet
 import constants
 import generators
 
+# Type hinting
+from typing import Tuple, List, Generator
 
-def main():
+def main() -> None:
     """The main function for the module; handles calling the other functions."""
     language_info = []
     filenames = sys.argv[1:]
     file_contents = read_files(filenames)
     for file_content in file_contents:
-        info = {}
-        info['patterns'] = constants.SAMPLEPATTERN
-        info['translation'] = {}
+        info = {
+            'patterns': constants.SAMPLEPATTERN,
+            'translation': {},
+        }
         for number, line in regex_the_line(file_content):
             info['translation'][number] = line
         compile_patterns(info)
@@ -36,9 +39,9 @@ def main():
     dump_json(language_info)
 
 
-def read_files(paths):
+def read_files(paths: List[str]) -> List[List[str]]:
     """Reads the file and returns a list of the file's contents."""
-    file_contents = list()
+    file_contents: List[List[str]] = []
     for path in paths:
         file_ = Path(path)
         if not file_.is_file():
@@ -62,7 +65,7 @@ def read_files(paths):
     return file_contents
 
 
-def regex_the_line(file_contents):
+def regex_the_line(file_contents: List[str]) -> Generator[Tuple[int, str]]:
     """Extracts the line number and text from the language file,
     and returns a (#, line) tuple."""
     for line in file_contents:
@@ -87,7 +90,9 @@ def defragment(language_info):
 
     if len(language_info) > 1:
         for info in language_info[1:]:
-            real_info['patterns'] = defrag_patterns(real_info['patterns'], info['patterns'])
+            real_info['patterns'] = defrag_patterns(
+                real_info['patterns'], info['patterns']
+            )
             for num, line in info['translation'].items():
                 if line not in real_info['translation'][num]:
                     real_info['translation'][num].append(line)

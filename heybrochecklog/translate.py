@@ -12,8 +12,20 @@ from heybrochecklog.analyze import analyze_log
 from heybrochecklog.logfile import LogFile
 from heybrochecklog.shared import get_log_contents, open_json
 
+# Type hinting
+from typing import Dict, Union, TypedDict, List, cast, Optional, Required
+from pathlib import Path
+from heybrochecklog.score.logchecker import TranslationJsonContent
+from re import Pattern
 
-def translate_log(log_file):
+
+class TranslationDict(TypedDict, total=False):
+    unrecognized: Required[Union[bool, str]]
+    log: str
+    language: Optional[str]
+
+
+def translate_log(log_file: Path) -> TranslationDict:
     """Initialize and capture all logs."""
     try:
         contents = get_log_contents(log_file)
@@ -23,7 +35,7 @@ def translate_log(log_file):
         return {'unrecognized': 'Could not decode log'}
 
 
-def translate_log_from_contents(contents):
+def translate_log_from_contents(contents: str) -> TranslationDict:
     """Translate a log file given its contents."""
     log = LogFile(contents.split('\n'))
     try:
@@ -32,7 +44,7 @@ def translate_log_from_contents(contents):
         return {'unrecognized': 'Could not decode log'}
 
 
-def translate_wrapper(log):
+def translate_wrapper(log: LogFile) -> TranslationDict:
     """Translate log given log file."""
     try:
         analyze_log(log)
@@ -52,36 +64,41 @@ def translate_wrapper(log):
     return sub_english(log)
 
 
-def sub_english(log):
+def sub_english(log: LogFile) -> TranslationDict:
     """Translate the log file and return a dict of info and log."""
-    english = open_json('eac', 'english.json')['translation']
-    foreign = open_json('eac', '{}.json'.format(log.language))['translation']
+    english = cast(TranslationJsonContent, open_json('eac', 'english.json'))[
+        'translation'
+    ]
+    foreign = cast(TranslationJsonContent, open_json('eac', '{}.json'.format(log.language)))[
+        'translation'
+    ]
 
     # Sort foreign lines from longest to shortest
     foreign = OrderedDict(
         sorted(foreign.items(), key=lambda t: len(t[1][0]), reverse=True)
     )
+    foreign_compiled: Dict[str, Pattern[str]] = {}
 
     # Compile all the regex now instead of repeating.
     for key, value in foreign.items():
         for i, v in enumerate(value):
             value[i] = re.escape(v)
-        foreign[key] = re.compile('|'.join(value), flags=re.IGNORECASE)
+        foreign_compiled[key] = re.compile('|'.join(value), flags=re.IGNORECASE)
 
     # Iterate through each line and find/replace each string.
-    new_log = []
+    new_log_parts: List[str] = []
     for line in log.full_contents:
         if not line:  # No use wasting time here.
-            new_log.append('')
+            new_log_parts.append('')
         else:
-            for key, regex in foreign.items():
+            for key, regex in foreign_compiled.items():
                 if regex.search(line):
                     for value in english[key]:
                         line = regex.sub(value, line)
-            new_log.append(line)
+            new_log_parts.append(line)
 
-    re_space_settings(new_log)
-    new_log = ''.join(new_log)
+    re_space_settings(new_log_parts)
+    new_log = ''.join(new_log_parts)
 
     return {
         'unrecognized': False,
@@ -90,7 +107,7 @@ def sub_english(log):
     }
 
 
-def re_space_settings(log):
+def re_space_settings(log: List[str]) -> None:
     """Fix the spacing in the rip settings block."""
     spacings = [
         24,

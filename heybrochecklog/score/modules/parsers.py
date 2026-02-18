@@ -6,6 +6,10 @@ from heybrochecklog import UnrecognizedException
 from heybrochecklog.resources import VERSIONS
 from heybrochecklog.shared import format_pattern as fmt_ptn
 
+# Type hinting
+from typing import List, ItemsView, Tuple
+from heybrochecklog.logfile import LogFile
+
 
 def index_toc(log):
     """Index the ToC data of the log."""
@@ -16,7 +20,7 @@ def index_toc(log):
             log.toc[int(result.group(1))] = [int(result.group(2)), int(result.group(3))]
 
 
-def get_track_number(log, index, track_word):
+def get_track_number(log, index, track_word) -> int:
     """Get the track number from the header line of a track block."""
     result = re.search(r'{} ([0-9]+)'.format(fmt_ptn(track_word)), log.contents[index])
     if result:
@@ -51,7 +55,9 @@ def parse_range_accuraterip(log, ar_rr_patterns):
         parse_accuraterip(log, ar_rr_patterns, line)
 
 
-def parse_errors_eac(log, err_patterns, track_num, line):
+def parse_errors_eac(
+    log: LogFile, err_patterns: ItemsView[str, List[str]], track_num: int, line: str
+) -> None:
     """Parse line of an EAC log for a ripping error."""
     for error, re_err in err_patterns:
         if track_num not in log.track_errors[error] and re.match(
@@ -60,7 +66,9 @@ def parse_errors_eac(log, err_patterns, track_num, line):
             log.track_errors[error].append(track_num)
 
 
-def parse_errors_xld(log, err_patterns, track_num, line):
+def parse_errors_xld(
+    log: LogFile, err_patterns: ItemsView[str, List[str]], track_num: int, line: str
+) -> None:
     """Parse line of a XLD log for a ripping error."""
     for error, re_err in err_patterns:
         if track_num not in log.track_errors[error]:
@@ -69,8 +77,16 @@ def parse_errors_xld(log, err_patterns, track_num, line):
                 log.track_errors[error].append([track_num, int(result.group(1))])
 
 
-def parse_checksum(log, regex, imp_version, deduc_line):
+def parse_checksum(
+    log: LogFile,
+    regex: List[str],
+    imp_version: str,
+    deduc_line: str,
+) -> None:
     """Parse line(s) for presence of a checksum."""
+    imp_version_: Tuple[str, str] | str = (
+        imp_version  # WARNING: Typing shenanigans, perhaps an artifact.
+    )
     re_checksum = re.compile(fmt_ptn(regex))
     for line in log.contents[log.index_footer :]:
         if re_checksum.match(line):
@@ -78,13 +94,14 @@ def parse_checksum(log, regex, imp_version, deduc_line):
             break
     else:  # If checksum not found
         # Compare version numbers to see if Log is older than checksums.
+        assert log.ripper is not None
         for version in VERSIONS[log.ripper]:
             if version[0] == log.version:
                 log_version = version
-            if version[0] == imp_version:
-                imp_version = version
+            if version[0] == imp_version_:
+                imp_version_ = version
         if VERSIONS[log.ripper].index(log_version) <= VERSIONS[log.ripper].index(
-            imp_version
+            imp_version_
         ):
             log.add_deduction('Checksum')
         else:
