@@ -22,7 +22,7 @@ from typing import (
     TYPE_CHECKING,
     Callable,
     ItemsView,
-    cast
+    cast,
 )
 from re import Pattern
 
@@ -30,8 +30,8 @@ if TYPE_CHECKING:  # Avoid circular imports
     from heybrochecklog.logfile import LogFile
 from abc import ABC, abstractmethod
 
-TranslationJsonContentPatternsTracksettings = TypedDict(
-    "TranslationJsonContentPatternsTracksettings",
+LanguagePatternsTracksettingsRaw = TypedDict(
+    "LanguagePatternsTracksettingsRaw",
     {
         "filename": List[str],
         "pregap": List[str],
@@ -44,8 +44,8 @@ TranslationJsonContentPatternsTracksettings = TypedDict(
 )
 
 # TODO: also put EAC only as Optional and add corresponding asserts
-TranslationJsonContentPatterns = TypedDict(
-    "TranslationJsonContentPatterns",
+LanguagePatternsRaw = TypedDict(
+    "LanguagePatternsRaw",
     {
         "drive": List[str],
         "settings": Dict[str, List[str]],
@@ -56,7 +56,7 @@ TranslationJsonContentPatterns = TypedDict(
         "range": List[str],
         "htoa": List[str],
         "track": List[str],
-        "track settings": TranslationJsonContentPatternsTracksettings,
+        "track settings": LanguagePatternsTracksettingsRaw,
         "track errors": Dict[str, List[str]],
         "accuraterip": Dict[str, List[str]],
         "range accuraterip": Dict[str, List[str]],
@@ -66,21 +66,24 @@ TranslationJsonContentPatterns = TypedDict(
         "disc type": Optional[List[str]],
         "All Tracks": Optional[List[str]],
         # EAC95 only
-        "95 settings": Optional[Dict[str, List[str]]], # WARNING: never defined in translation files (but needed for style_95_read_mode(...))
+        "95 settings": Optional[
+            Dict[str, List[str]]
+        ],  # WARNING: never defined in translation files (but needed for style_95_read_mode(...))
     },
 )
 
 
-class TranslationJsonContent(TypedDict):
-    patterns: TranslationJsonContentPatterns
+class LanguageFile(TypedDict):
+    patterns: LanguagePatternsRaw
     translation: Dict[str, List[str]]
+
 
 class LogChecker(ABC):
     """The base log checker to be subclassed by more specific log checkers."""
 
     def __init__(
         self,
-        patterns: TranslationJsonContentPatterns,
+        patterns: LanguagePatternsRaw,
         translation: Optional[Dict[str, List[str]]] = None,
         markup: bool = False,
     ):
@@ -221,11 +224,15 @@ class LogChecker(ABC):
         accuraterip: bool = True,
     ) -> None:
         """Get track data for each track and check for errors."""
-        ar_patterns = self.patterns['accuraterip'].items() if accuraterip else {}
+        ar_patterns: ItemsView[str, List[str]] = (
+            self.patterns['accuraterip'].items()
+            if accuraterip
+            else cast(Dict[str, list[str]], {}).items()
+        )
         err_patterns = self.patterns['track errors'].items()
 
         for i, index in enumerate(log.track_indices):
-            track_data = {}
+            track_data: Dict[str, str] = {}
             track_num = parsers.get_track_number(log, index, self.patterns['track'])
 
             for line in log.contents[log.track_indices[i] : log.track_indices[i + 1]]:
@@ -237,10 +244,9 @@ class LogChecker(ABC):
                 # Ripping Errors - Loop through errors in json track errors.
                 parse_errors(log, err_patterns, track_num, line)
 
-            td = cast(TranslationJsonContentPatternsTracksettings, track_data)
-            validation.check_crc_mismatch(log, track_num, td)
+            validation.check_crc_mismatch(log, track_num, track_data)
 
-            log.tracks[track_num] = td
+            log.tracks[track_num] = track_data
             if log.track_indices[i + 1] == max(log.track_indices):
                 break
 

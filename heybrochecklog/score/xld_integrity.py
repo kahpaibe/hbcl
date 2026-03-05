@@ -4,7 +4,7 @@
 import base64
 
 # Type hinting
-from typing import Tuple, Optional
+from typing import Tuple, Optional, List
 
 
 def rotate_left(n: int, k: int) -> int:
@@ -162,39 +162,39 @@ def scramble(data: bytes) -> bytes:
         unaligned_chunk = data[stop:]
         data = data[:stop] + b'\x00' * 8
 
-    output = []
+    output: List[bytes] = []
 
     # Magic initial state
-    X = 0x6479B873
-    Y = 0x48853AFC
+    x = 0x6479B873
+    y = 0x48853AFC
 
     for offset in range(0, len(data), 8):
         # Read off two 32-bit integers
-        X ^= int.from_bytes(data[offset : offset + 4], 'big')
-        Y ^= int.from_bytes(data[offset + 4 : offset + 8], 'big')
+        x ^= int.from_bytes(data[offset : offset + 4], 'big')
+        y ^= int.from_bytes(data[offset + 4 : offset + 8], 'big')
 
         # Scramble them around
         for _ in range(4):
             for i in range(2):
-                Y ^= X
+                y ^= x
 
-                a = (MAGIC_CONSTANTS[4 * i + 0] + Y) & 0xFFFFFFFF
+                a = (MAGIC_CONSTANTS[4 * i + 0] + y) & 0xFFFFFFFF
                 b = (a - 1 + rotate_left(a, 1)) & 0xFFFFFFFF
 
-                X ^= b ^ rotate_left(b, 4)
+                x ^= b ^ rotate_left(b, 4)
 
-                c = (MAGIC_CONSTANTS[4 * i + 1] + X) & 0xFFFFFFFF
+                c = (MAGIC_CONSTANTS[4 * i + 1] + x) & 0xFFFFFFFF
                 d = (c + 1 + rotate_left(c, 2)) & 0xFFFFFFFF
 
                 e = (MAGIC_CONSTANTS[4 * i + 2] + (d ^ rotate_left(d, 8))) & 0xFFFFFFFF
                 f = (rotate_left(e, 1) - e) & 0xFFFFFFFF
 
-                Y ^= (X | f) ^ rotate_left(f, 16)
+                y ^= (x | f) ^ rotate_left(f, 16)
 
-                g = (MAGIC_CONSTANTS[4 * i + 3] + Y) & 0xFFFFFFFF
-                X ^= (g + 1 + rotate_left(g, 2)) & 0xFFFFFFFF
+                g = (MAGIC_CONSTANTS[4 * i + 3] + y) & 0xFFFFFFFF
+                x ^= (g + 1 + rotate_left(g, 2)) & 0xFFFFFFFF
 
-        output.append(X.to_bytes(4, 'big') + Y.to_bytes(4, 'big'))
+        output.append(x.to_bytes(4, 'big') + y.to_bytes(4, 'big'))
 
     # Handle the unaligned last chunk differently
     if unaligned_chunk:

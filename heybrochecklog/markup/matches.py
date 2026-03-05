@@ -94,7 +94,7 @@ def eac_footer_matches(translation: Dict[str, List[str]]) -> Dict[str, List[str]
         matches['good'].append('==== {} [0-9A-F]+ ===='.format(translation['1325']))
 
     # EAC HAS A TYPO FOR "NO ERRORS OCCURED" WTF
-    if translation['1222'] == 'No errors occurred':
+    if "".join(translation['1222']) == 'No errors occurred': # TODO: check, before was translation['1222'] == 'No errors occurred' but ...[...] is List[str]
         matches['good'].append('No errors occured')
 
     return matches

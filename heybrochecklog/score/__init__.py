@@ -12,8 +12,8 @@ from heybrochecklog.shared import get_log_contents, open_json
 from typing import cast
 from pathlib import Path
 from heybrochecklog.score.logchecker import (
-    TranslationJsonContentPatterns,
-    TranslationJsonContent,
+    LanguagePatternsRaw,
+    LanguageFile,
 )
 from heybrochecklog.logfile import LogFileDict
 
@@ -53,23 +53,25 @@ def score_wrapper(
         log.full_contents = [html.escape(line) for line in log.full_contents]
         return log
 
+    logchecker = None
     if log.ripper == 'EAC':
         info_json = cast(
-            TranslationJsonContent, open_json('eac', '{}.json'.format(log.language))
+            LanguageFile, open_json('eac', '{}.json'.format(log.language))
         )
         logchecker = eac.EACChecker(
             info_json['patterns'], info_json['translation'], markup
         )
     elif log.ripper == 'XLD':
-        patterns = cast(TranslationJsonContentPatterns, open_json('xld.json'))
+        patterns = cast(LanguagePatternsRaw, open_json('xld.json'))
         logchecker = xld.XLDChecker(patterns, markup=markup)
     elif log.ripper == 'EAC95':
         info_json = cast(
-            TranslationJsonContent, open_json('eac95', '{}.json'.format(log.language))
+            LanguageFile, open_json('eac95', '{}.json'.format(log.language))
         )
         logchecker = eac95.EAC95Checker(
             info_json['patterns'], info_json['translation'], markup
         )
+    assert logchecker is not None, 'Log checker should have been set by this point'
 
     try:
         log = logchecker.check(log, integrity)

@@ -12,8 +12,7 @@ import sys
 import requests
 
 # Type hinting
-from typing import Optional
-from sqlite3 import _Parameters
+from typing import Optional, Any
 
 
 def main() -> None:
@@ -60,7 +59,7 @@ def create_db() -> None:
     """)
 
 
-def query(string: str, args: Optional[_Parameters] = None):
+def query(string: str, args: Optional[Any] = None):
     """Send a query to the DB."""
     path = os.path.join(sys.path[0], 'drives.db')
     conn = sqlite3.connect(path)

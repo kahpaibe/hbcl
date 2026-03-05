@@ -7,20 +7,21 @@ from heybrochecklog.resources import VERSIONS
 from heybrochecklog.shared import format_pattern as fmt_ptn
 
 # Type hinting
-from typing import List, ItemsView, Tuple
+from re import Pattern
+from typing import List, ItemsView, Dict
 from heybrochecklog.logfile import LogFile
 
 
-def index_toc(log):
+def index_toc(log: LogFile):
     """Index the ToC data of the log."""
     re_toc = re.compile(r' ([0-9]+) \| [0-9:\.]+ \| [0-9:\.]+ \| ([0-9]+) \| ([0-9]+)')
     for line in log.contents[log.index_toc : log.index_tracks]:
         result = re_toc.search(line)
         if result:
-            log.toc[int(result.group(1))] = [int(result.group(2)), int(result.group(3))]
+            log.toc[int(result.group(1))] = (int(result.group(2)), int(result.group(3)))
 
 
-def get_track_number(log, index, track_word) -> int:
+def get_track_number(log: LogFile, index: int, track_word: List[str]) -> int:
     """Get the track number from the header line of a track block."""
     result = re.search(r'{} ([0-9]+)'.format(fmt_ptn(track_word)), log.contents[index])
     if result:
@@ -31,7 +32,9 @@ def get_track_number(log, index, track_word) -> int:
         raise UnrecognizedException('A track has an invalid block header')
 
 
-def parse_settings(track_data, track_settings, line):
+def parse_settings(
+    track_data: Dict[str, str], track_settings: Dict[str, Pattern[str]], line: str
+) -> None:
     """Loop through and parse the settings used in the rip."""
     for setting, reg in track_settings.items():
         result = reg.match(line)
@@ -39,17 +42,21 @@ def parse_settings(track_data, track_settings, line):
             track_data[setting] = result.group(1)
 
 
-def parse_accuraterip(log, ar_patterns, line):
+def parse_accuraterip(
+    log: LogFile, ar_patterns: ItemsView[str, List[str]], line: str
+) -> None:
     """Parse line for an AccurateRip result."""
     for status, re_accurip in ar_patterns:
         result = re.search(fmt_ptn(re_accurip), line)
         if result and isinstance(result.lastindex, int) and result.lastindex >= 1:
-            log.accuraterip.append([status, result.group(result.lastindex)])
+            log.accuraterip.append((status, result.group(result.lastindex)))
         elif result and result.lastindex is None:
-            log.accuraterip.append([status, None])
+            log.accuraterip.append((status, None))
 
 
-def parse_range_accuraterip(log, ar_rr_patterns):
+def parse_range_accuraterip(
+    log: LogFile, ar_rr_patterns: ItemsView[str, List[str]]
+) -> None:
     """Parse range rip footer for AccurateRip results."""
     for line in log.contents[log.index_footer :]:
         parse_accuraterip(log, ar_rr_patterns, line)
@@ -71,10 +78,12 @@ def parse_errors_xld(
 ) -> None:
     """Parse line of a XLD log for a ripping error."""
     for error, re_err in err_patterns:
-        if track_num not in log.track_errors[error]:
+        if (
+            track_num not in log.track_errors[error]
+        ):  # TODO@@@: log.track_errors to retype
             result = re.search(r' ' + fmt_ptn(re_err) + r' : ([0-9]+)', line)
             if result and result.group(1) != "0":
-                log.track_errors[error].append([track_num, int(result.group(1))])
+                log.track_errors[error].append((track_num, int(result.group(1))))
 
 
 def parse_checksum(
@@ -84,9 +93,6 @@ def parse_checksum(
     deduc_line: str,
 ) -> None:
     """Parse line(s) for presence of a checksum."""
-    imp_version_: Tuple[str, str] | str = (
-        imp_version  # WARNING: Typing shenanigans, perhaps an artifact.
-    )
     re_checksum = re.compile(fmt_ptn(regex))
     for line in log.contents[log.index_footer :]:
         if re_checksum.match(line):
@@ -95,14 +101,17 @@ def parse_checksum(
     else:  # If checksum not found
         # Compare version numbers to see if Log is older than checksums.
         assert log.ripper is not None
+        log_version = None
+        imp_version_full = None
         for version in VERSIONS[log.ripper]:
             if version[0] == log.version:
                 log_version = version
-            if version[0] == imp_version_:
-                imp_version_ = version
-        if VERSIONS[log.ripper].index(log_version) <= VERSIONS[log.ripper].index(
-            imp_version_
-        ):
+            if version[0] == imp_version:
+                imp_version_full = version
+
+        assert log_version is not None and imp_version_full is not None
+        V = VERSIONS[log.ripper]
+        if V.index(log_version) <= V.index(imp_version_full): # If newer (checksum expected)
             log.add_deduction('Checksum')
         else:
             log.add_deduction(deduc_line + ' (no checksum)')

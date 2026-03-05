@@ -157,11 +157,14 @@ class XLDChecker(LogChecker):
         # splitting deductions into one deduction per track, capped at 10%.
         for error in log.track_errors:
             for each in log.track_errors[error]:
+                assert (
+                    isinstance(each, tuple) and len(each) == 2
+                )  # Always true (XLD track errors 2-uples)
                 log.add_deduction(error, multiplier=each[1], track=each[0], cap_10=True)
 
         if integrity:
             log_text = str.join("", log.full_contents)
-            data, version, old_signature, actual_signature = xld_verify(log_text)
+            _data, _version, old_signature, actual_signature = xld_verify(log_text)
             if actual_signature != old_signature:
                 log.add_deduction('Log Checksum Not Match', 1)
 

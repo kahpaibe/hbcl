@@ -8,13 +8,14 @@ from heybrochecklog.translate import translate_log  # noqa: E402
 from heybrochecklog.translate import TranslationDict
 from heybrochecklog.logfile import LogFileDict
 from argparse import Namespace
+from typing import List
 
 
 class UnrecognizedException(Exception):
     pass
 
 
-def parse_args():
+def parse_args() -> Namespace:
     """Parse arguments."""
     description = 'Tool to analyze, translate, and score a CD Rip Log.'
 
@@ -48,7 +49,7 @@ def parse_args():
     return parser.parse_args()
 
 
-def runner():
+def runner() -> None:
     """Main function to handle command line usage of the heybrochecklog package."""
     args = parse_args()
     for log_path in args.log:
@@ -84,9 +85,9 @@ def translate_(args: Namespace, log_file: Path, log_path: str) -> None:
         print('Cannot encode logpath: {}'.format(error))
 
 
-def format_score(logpath: str, log: LogFileDict, markup) -> str:
+def format_score(logpath: str, log: LogFileDict, markup: bool) -> str:
     """Turn a log file JSON into a pretty string."""
-    output = []
+    output: List[str] = []
     output.append('\nLog: ' + logpath)
     if log['unrecognized']:
         output.append('\nLog is unrecognized: {}'.format(log['unrecognized']))
@@ -115,7 +116,7 @@ def format_translation(logpath: str, log: TranslationDict) -> str:
     assert 'language' in log
     assert 'log' in log
 
-    output = []
+    output: List[str] = []
     output.append('\nLog: ' + logpath)
 
     if log['unrecognized']:

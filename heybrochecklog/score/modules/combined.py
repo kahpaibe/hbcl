@@ -45,12 +45,13 @@ def defragment(logs: List[LogFile], eac95: bool = False) -> LogFile:
     if len(logs) == 1 and not logs[0].htoa:
         return logs[0]
 
-    full_contents = []
+    full_contents: List[str] = []
     for log in logs:
         full_contents += log.full_contents
     logs[0].full_contents = full_contents
 
     # Make sure HTOA CRC's match if they exist.
+    htoa_logs = None
     if not eac95:
         htoa_logs = [log for log in logs if log.htoa]
         if htoa_logs:
@@ -70,6 +71,7 @@ def defragment(logs: List[LogFile], eac95: bool = False) -> LogFile:
 
     # Remove HTOA detection if it was extracted.
     if not eac95:
+        assert htoa_logs is not None
         patch_htoa(logs, htoa_logs)
 
     if len(logs) > 1:

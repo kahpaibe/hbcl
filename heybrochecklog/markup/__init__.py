@@ -16,8 +16,7 @@ from heybrochecklog.shared import format_pattern as fmt_ptn
 # Type hinting
 from heybrochecklog.logfile import LogFile
 from heybrochecklog.score.logchecker import (
-    TranslationJsonContentPatterns,
-    TranslationJsonContentPatternsTracksettings,
+    LanguagePatternsRaw,
 )
 from typing import List, Dict, Union, Tuple
 from re import Pattern
@@ -30,7 +29,7 @@ VERSIONS = {
 
 def markup(
     log: LogFile,
-    patterns: TranslationJsonContentPatterns,
+    patterns: LanguagePatternsRaw,
     translation: Dict[str, List[str]],
 ) -> None:
     """Mark up log files with highlighting for proper/improper settings."""
@@ -101,7 +100,7 @@ def cd_type(log: LogFile, line: str) -> str:
     return style_setting(line, 'good')
 
 
-def settings(log: LogFile, patterns: TranslationJsonContentPatterns) -> None:
+def settings(log: LogFile, patterns: LanguagePatternsRaw) -> None:
     """Mark up the settings block."""
     assert log.index_settings is not None
     for i, line in enumerate(log.full_contents[log.index_settings : log.index_toc]):
@@ -138,6 +137,7 @@ def toc(log: LogFile) -> None:
 
     # Adjust line for XLD All Tracks block
     end_line = log.all_tracks if log.all_tracks else log.index_tracks
+    matches = None
     if log.ripper == 'XLD':  # XLD AR Summary block matches
         matches = xld_ar_summary()
 
@@ -158,6 +158,7 @@ def toc(log: LogFile) -> None:
 
         # XLD also has an AR Summary block.
         if log.ripper == 'XLD':
+            assert matches is not None
             for class_ in matches:
                 for element in matches[class_]:
                     if re.match(element, line.lstrip()):
@@ -168,7 +169,7 @@ def toc(log: LogFile) -> None:
 
 def tracks(
     log: LogFile,
-    patterns: TranslationJsonContentPatterns,
+    patterns: LanguagePatternsRaw,
     translation: Dict[str, List[str]],
 ) -> None:
     """Mark up the tracks block."""
@@ -178,7 +179,7 @@ def tracks(
         eac_tracks(log, patterns, translation)
 
 
-def xld_tracks(log: LogFile, patterns: TranslationJsonContentPatterns) -> None:
+def xld_tracks(log: LogFile, patterns: LanguagePatternsRaw) -> None:
     """XLD tracks."""
     matches = xld_track_matches()
     indices = (
@@ -226,7 +227,7 @@ def xld_tracks(log: LogFile, patterns: TranslationJsonContentPatterns) -> None:
 
 def eac_tracks(
     log: LogFile,
-    patterns: TranslationJsonContentPatterns,
+    patterns: LanguagePatternsRaw,
     translation: Dict[str, List[str]],
 ) -> None:
     """EAC tracks."""
@@ -275,7 +276,7 @@ def track_number(log: LogFile, index: int, track_pattern: List[str]) -> Tuple[in
 
 
 def sub_crc(
-    track: TranslationJsonContentPatternsTracksettings,
+    track: Dict[str, str],
     element: str,
     line: str,
     xld_colon: bool = False,
@@ -324,7 +325,7 @@ def footer(log: LogFile, translation: Dict[str, List[str]]) -> None:
 
 
 def style_setting(
-    line: str, class_, first_class='log5', include_colon: bool = False
+    line: str, class_: str, first_class: str = 'log5', include_colon: bool = False
 ) -> str:
     """Style a setting line in the log (<setting_name> +: <setting>)."""
     if re.match(r'.+:.+', line):
@@ -354,7 +355,7 @@ def style_statistic(line: str, class_: str) -> str:
     return line
 
 
-def style_95_read_mode(line: str, patterns: TranslationJsonContentPatterns) -> str:
+def style_95_read_mode(line: str, patterns: LanguagePatternsRaw) -> str:
     """Style the EAC 95 read mode line."""
     # Burst mode doesn't have multiple settings in one line
     if ',' not in line:

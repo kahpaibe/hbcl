@@ -1,11 +1,11 @@
 """This module contains validation functions for log checking."""
 
+from typing import Dict
+
 from heybrochecklog import UnrecognizedException
 
 # Type hinting
 from heybrochecklog.logfile import LogFile
-from heybrochecklog.score.logchecker import TranslationJsonContentPatternsTracksettings
-
 
 def analyze_accuraterip(log: LogFile) -> None:
     """Analyze the AccurateRip results in the log."""
@@ -18,14 +18,14 @@ def analyze_accuraterip(log: LogFile) -> None:
             ):
                 log.add_deduction('AccurateRip discrepancies')
                 break
-    elif any('copy crc' in data for tnum, data in log.tracks.items()):
+    elif any('copy crc' in data for _tnum, data in log.tracks.items()):
         log.add_deduction('AccurateRip')
 
 
 def check_crc_mismatch(
     log: LogFile,
     track_num: int,
-    track_data: TranslationJsonContentPatternsTracksettings,
+    track_data: Dict[str, str],
 ) -> None:
     """Check a track block for a CRC mismatch."""
     if all(data in track_data for data in ['test crc', 'copy crc']):

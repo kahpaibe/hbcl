@@ -5,20 +5,18 @@ import re
 from heybrochecklog.resources import DEDUCTIONS
 
 # Type hinting
-from typing import Optional, Literal, List, Dict, TypedDict, Union, Required
-from heybrochecklog.score.logchecker import TranslationJsonContentPatternsTracksettings
-
+from heybrochecklog.resources import DeductionTuple
+from typing import Optional, Literal, List, Dict, TypedDict, Union, Required, Tuple
 
 class LogFileDict(TypedDict, total=False):
     flagged: Required[bool]
     contents: Required[str]
     unrecognized: Required[Union[str, bool]]
-    deductions: List[str]
+    deductions: List[DeductionTuple]
     score: int
     name: Optional[str]
     ripper: Optional[Literal['EAC', 'XLD', 'EAC95']]
     version: Optional[str]
-
 
 class LogFile:
     """A log file class containing variables, score, deductions, etc."""
@@ -45,15 +43,15 @@ class LogFile:
         self.cdr = False
         self.unindexed_drive = False
         self.htoa = False
-        self.htoa_index = False
+        self.htoa_index: Union[int, Literal[False]] = False
         self.htoa_ripped = False
 
         # Important parts of the log
         self.checksum = False
         self.all_tracks: Optional[int] = None
-        self.deductions = {}
+        self.deductions: Dict[str, DeductionTuple] = {}
         self.crc_mismatch: List[int] = []
-        self.track_errors = {
+        self.track_errors: Dict[str, List[Union[int, Tuple[int, int]]]] = {
             "Aborted copy": [],
             "Timing problem": [],
             "Suspicious position": [],
@@ -63,10 +61,10 @@ class LogFile:
         }
 
         # Lists of data for the log
-        self.toc = {}
-        self.accuraterip = []
-        self.track_indices = []
-        self.tracks: Dict[int, TranslationJsonContentPatternsTracksettings] = {}
+        self.toc: Dict[int, Tuple[int, int]] = {}
+        self.accuraterip: List[Tuple[str, Optional[str]]] = []
+        self.track_indices: List[int] = []
+        self.tracks: Dict[int, Dict[str, str]] = {}
 
         # Indexes of log locations
         self.index_settings: Optional[int] = None
@@ -104,7 +102,12 @@ class LogFile:
         }
 
     def add_deduction(
-        self, deduction, multiplier=1, track=None, extra_phrase=None, cap_10=False
+        self,
+        deduction: str,
+        multiplier: int = 1,
+        track: Optional[int] = None,
+        extra_phrase: Optional[str]=None, # Never used
+        cap_10: bool=False,
     ):
         """Add a deduction to the log file."""
         name, score = self._get_deduction_from_dict(deduction)
@@ -120,9 +123,9 @@ class LogFile:
         if extra_phrase:
             name += ' ({})'.format(extra_phrase)
 
-        self.deductions[deduction] = [name, score]
+        self.deductions[deduction] = (name, score)
 
-    def _get_deduction_from_dict(self, deduction):
+    def _get_deduction_from_dict(self, deduction: str) -> Tuple[str, Optional[int]]:
         """Get the deduction's name and score from the deductions dict."""
         if deduction not in DEDUCTIONS:
             return (deduction, None)
@@ -138,21 +141,21 @@ class LogFile:
 
         return (deduction_entry[0], deduction_entry[1])
 
-    def remove_deduction(self, deduction):
+    def remove_deduction(self, deduction: str) -> None:
         """Remove a deduction from the log file."""
         if deduction in self.deductions:
             del self.deductions[deduction]
 
-    def has_deduction(self, deduction):
+    def has_deduction(self, deduction: str) -> bool:
         """Learn whether or not the log file has a deduction."""
         return deduction in self.deductions
 
-    def has_deductions(self, *deductions):
+    def has_deductions(self, *deductions: str) -> bool:
         """Return whether or not log has every deduction in deductions."""
         return all(de in self.deductions for de in deductions)
 
 
-def format_full_contents(full_contents):
+def format_full_contents(full_contents: List[str]) -> List[str]:
     """
     Format raw contents by stripping spaces, blank lines, and filtering
     out unicode crap.

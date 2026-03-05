@@ -15,7 +15,7 @@ from heybrochecklog.shared import get_log_contents, open_json
 # Type hinting
 from typing import Dict, Union, TypedDict, List, cast, Optional, Required
 from pathlib import Path
-from heybrochecklog.score.logchecker import TranslationJsonContent
+from heybrochecklog.score.logchecker import LanguageFile
 from re import Pattern
 
 
@@ -66,10 +66,10 @@ def translate_wrapper(log: LogFile) -> TranslationDict:
 
 def sub_english(log: LogFile) -> TranslationDict:
     """Translate the log file and return a dict of info and log."""
-    english = cast(TranslationJsonContent, open_json('eac', 'english.json'))[
+    english = cast(LanguageFile, open_json('eac', 'english.json'))[
         'translation'
     ]
-    foreign = cast(TranslationJsonContent, open_json('eac', '{}.json'.format(log.language)))[
+    foreign = cast(LanguageFile, open_json('eac', '{}.json'.format(log.language)))[
         'translation'
     ]
 

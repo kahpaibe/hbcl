@@ -70,7 +70,8 @@ class EAC95Checker(LogChecker):
         proper_settings = self.patterns['proper settings']
 
         # Compile regex beforehand
-        settings, full_settings = {}, {}
+        settings: Dict[str, Pattern[str]] = {}
+        full_settings: Dict[str, Pattern[str]]= {}
         for key, regex in psettings.items():
             settings[key] = re.compile(fmt_ptn(regex))
         for key, regex in full_psettings.items():
