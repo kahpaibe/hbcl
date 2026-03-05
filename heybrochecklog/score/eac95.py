@@ -50,6 +50,7 @@ class EAC95Checker(LogChecker):
     @override
     def all_range_index(self, log: LogFile, line: str) -> bool:
         """Match the Range Rip line in the log file."""
+        assert self.patterns['range'] is not None
         if log.index_tracks is None and re.match(fmt_ptn(self.patterns['range']), line):
             return True
         return False
@@ -65,13 +66,14 @@ class EAC95Checker(LogChecker):
         """Evaluate the log for usage of proper rip settings.
         Overwriting the base class for different 0.95 behavior.
         """
+        assert self.patterns['full line settings'] is not None
         psettings = self.patterns['settings']
         full_psettings = self.patterns['full line settings']
         proper_settings = self.patterns['proper settings']
 
         # Compile regex beforehand
         settings: Dict[str, Pattern[str]] = {}
-        full_settings: Dict[str, Pattern[str]]= {}
+        full_settings: Dict[str, Pattern[str]] = {}
         for key, regex in psettings.items():
             settings[key] = re.compile(fmt_ptn(regex))
         for key, regex in full_psettings.items():
@@ -119,6 +121,7 @@ class EAC95Checker(LogChecker):
     def check_bad_settings(self, log: LogFile, line: str) -> None:
         """Evaluate the instant -100 point deductions
         (destructive normalization and compression offset)."""
+        assert self.patterns['bad settings'] is not None
         bad_settings = self.patterns['bad settings']
         for sett, pattern in bad_settings.items():
             if re.search(fmt_ptn(pattern), line):

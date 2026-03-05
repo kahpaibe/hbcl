@@ -78,9 +78,7 @@ def parse_errors_xld(
 ) -> None:
     """Parse line of a XLD log for a ripping error."""
     for error, re_err in err_patterns:
-        if (
-            track_num not in log.track_errors[error]
-        ):  # TODO@@@: log.track_errors to retype
+        if track_num not in log.track_errors[error]:
             result = re.search(r' ' + fmt_ptn(re_err) + r' : ([0-9]+)', line)
             if result and result.group(1) != "0":
                 log.track_errors[error].append((track_num, int(result.group(1))))
@@ -111,7 +109,9 @@ def parse_checksum(
 
         assert log_version is not None and imp_version_full is not None
         V = VERSIONS[log.ripper]
-        if V.index(log_version) <= V.index(imp_version_full): # If newer (checksum expected)
+        if V.index(log_version) <= V.index(
+            imp_version_full
+        ):  # If newer (checksum expected)
             log.add_deduction('Checksum')
         else:
             log.add_deduction(deduc_line + ' (no checksum)')

@@ -49,26 +49,29 @@ LanguagePatternsRaw = TypedDict(
     {
         "drive": List[str],
         "settings": Dict[str, List[str]],
-        'full line settings': Dict[str, List[str]],
-        "bad settings": Dict[str, List[str]],
         "proper settings": Dict[str, List[str]],
-        "toc": List[str],
-        "range": List[str],
         "htoa": List[str],
         "track": List[str],
         "track settings": LanguagePatternsTracksettingsRaw,
         "track errors": Dict[str, List[str]],
-        "accuraterip": Dict[str, List[str]],
-        "range accuraterip": Dict[str, List[str]],
         "footer": List[str],
-        "checksum": List[str],
+        # EAC and EAC95 only
+        "bad settings": Optional[Dict[str, List[str]]],
+        "range": Optional[List[str]],
+        # EAC and XLD only
+        "toc": Optional[List[str]],
+        "checksum": Optional[List[str]],
+        "accuraterip": Optional[Dict[str, List[str]]],
+        # EAC only
+        "range accuraterip": Optional[Dict[str, List[str]]],
         # XLD only
         "disc type": Optional[List[str]],
         "All Tracks": Optional[List[str]],
         # EAC95 only
         "95 settings": Optional[
             Dict[str, List[str]]
-        ],  # WARNING: never defined in translation files (but needed for style_95_read_mode(...))
+        ],  # Never defined in translation files (but needed for style_95_read_mode(...))
+        "full line settings": Optional[Dict[str, List[str]]]
     },
 )
 
@@ -89,7 +92,7 @@ class LogChecker(ABC):
     ):
         self.patterns = patterns
         self.translation = translation
-        self.markup = markup
+        self.markup: bool = markup
 
     def verify_version(
         self, regex: Pattern[str], line: str, ripper: Literal['EAC', 'XLD']
@@ -113,12 +116,12 @@ class LogChecker(ABC):
     def index_log(self, log: LogFile, ninety_five: bool = False) -> None:
         """Index key line numbers inside the log."""
         if ninety_five:
-            assert (
-                self.translation is not None
-            ), 'Translation should have been provided.'
+            assert self.translation is not None
             read_mode = re.compile(re.sub(' +', ' ', fmt_ptn(self.translation['1234'])))
         else:
             read_mode = re.compile(fmt_ptn(self.patterns['settings']['Read mode']))
+
+        assert 'toc' in self.patterns and self.patterns['toc'] is not None
         toc = (
             re.compile(fmt_ptn(self.patterns['toc']))
             if 'toc' in self.patterns
@@ -224,11 +227,13 @@ class LogChecker(ABC):
         accuraterip: bool = True,
     ) -> None:
         """Get track data for each track and check for errors."""
-        ar_patterns: ItemsView[str, List[str]] = (
-            self.patterns['accuraterip'].items()
-            if accuraterip
-            else cast(Dict[str, list[str]], {}).items()
-        )
+
+        ar_patterns: ItemsView[str, List[str]]
+        if accuraterip:
+            assert 'accuraterip' in self.patterns and self.patterns['accuraterip'] is not None
+            ar_patterns = self.patterns['accuraterip'].items()
+        else:
+            ar_patterns = cast(Dict[str, list[str]], {}).items()
         err_patterns = self.patterns['track errors'].items()
 
         for i, index in enumerate(log.track_indices):

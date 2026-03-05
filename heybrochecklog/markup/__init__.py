@@ -53,7 +53,7 @@ def header(log: LogFile, translation: Dict[str, List[str]]) -> None:
         start_index = 1  # No need to scan this line twice.
 
     if log.ripper == 'EAC' or log.ripper == 'EAC95':
-        re_time_line = translation['1274']
+        re_time_line = ''.join(translation['1274'])
     else:  # XLD
         re_time_line = 'XLD extraction logfile from'
 
@@ -118,6 +118,7 @@ def settings(log: LogFile, patterns: LanguagePatternsRaw) -> None:
                 break
         else:
             if log.ripper in ['EAC', 'EAC95']:
+                assert patterns['bad settings'] is not None
                 for key, value in patterns['bad settings'].items():
                     if re.match(fmt_ptn(value), line.lstrip()):
                         log.full_contents[i] = style_setting(line, 'bad')

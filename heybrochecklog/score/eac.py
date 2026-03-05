@@ -36,6 +36,7 @@ class EACChecker(LogChecker):
             self.is_there_a_htoa(log)
             self.check_tracks(log)
 
+            assert self.patterns['checksum'] is not None
             parsers.parse_checksum(
                 log, self.patterns['checksum'], 'V1.0 beta 1', 'EAC <1.0'
             )
@@ -63,6 +64,7 @@ class EACChecker(LogChecker):
     @override
     def all_range_index(self, log: LogFile, line: str) -> bool:
         """Match the Range Rip line in the log file."""
+        assert self.patterns['range'] is not None
         if log.index_tracks is None and re.match(fmt_ptn(self.patterns['range']), line):
             return True
         return False
@@ -76,6 +78,7 @@ class EACChecker(LogChecker):
     @override
     def check_bad_settings(self, log: LogFile, line: str) -> None:
         """Evaluate the instant -100 point deductions."""
+        assert self.patterns['bad settings'] is not None
         bad_settings = self.patterns['bad settings']
         for sett, pattern in bad_settings.items():
             if re.match(fmt_ptn(pattern), line):
@@ -159,6 +162,7 @@ class EACChecker(LogChecker):
         """Evaluate the analyzed track data for deficiencies."""
         # AccurateRip for EAC Range Rip - AR results are at the bottom of the log.
         if log.range:
+            assert self.patterns['range accuraterip'] is not None
             patterns = self.patterns['range accuraterip'].items()
             parsers.parse_range_accuraterip(log, patterns)
 

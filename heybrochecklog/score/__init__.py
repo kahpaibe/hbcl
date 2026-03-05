@@ -71,9 +71,9 @@ def score_wrapper(
         logchecker = eac95.EAC95Checker(
             info_json['patterns'], info_json['translation'], markup
         )
-    assert logchecker is not None, 'Log checker should have been set by this point'
 
     try:
+        assert logchecker is not None
         log = logchecker.check(log, integrity)
     except UnrecognizedException as exception:
         log.unrecognized = str(exception)

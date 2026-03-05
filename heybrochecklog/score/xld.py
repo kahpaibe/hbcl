@@ -34,6 +34,8 @@ class XLDChecker(LogChecker):
         self.is_there_a_htoa(log)
         validation.validate_track_count(log)
         validation.validate_track_settings(log, xld=True)
+        
+        assert self.patterns['checksum'] is not None
         parsers.parse_checksum(
             log, self.patterns['checksum'], '20121222', 'XLD pre-142.2'
         )
